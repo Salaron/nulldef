@@ -33,11 +33,13 @@ namespace vkCommands {
     if (message.attachments) message.attachments.forEach((att: vkAttachment) => {
       if (att.type === "audio_message" && att.audio_message.duration < 20) urlList.push(att.audio_message.link_mp3)
     })
-    if (message.fwd_messages && message.fwd_messages.length > 0) {
+
+    // ignore fwd & reply messages on autostt
+    if (message.fwd_messages && message.fwd_messages.length > 0 && !args.includes("force")) {
       message.fwd_messages.forEach(async (message: vkMessageMin) => {
         checkAllFwd(message)
       })
-    } else if (typeof message.reply_message != 'undefined') {
+    } else if (typeof message.reply_message != 'undefined' && !args.includes("force")) {
       checkAllReplies(message.reply_message)
     }
     if (urlList.length === 0) return `Здесь нет аудио сообщений`

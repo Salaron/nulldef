@@ -7,7 +7,7 @@ const readLineInterface = readline.createInterface({
   output: process.stdout
 })
 readLineInterface.setPrompt('_> ')
-readLineInterface.prompt()
+//readLineInterface.prompt()
 
 export default class Utils {
   private connection: Connection

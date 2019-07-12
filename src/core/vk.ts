@@ -31,7 +31,7 @@ export default class Vk {
 
   public async sendMessage(peerId: number, message: string, replyTo?: number): Promise<any[]> {
     // There is limit for 4096 characters in one msg
-    // So we need to cut our message for several parts
+    // So we need to cut our message to a several parts
     let result = []
     while (message.length != 0) {
       let short = message.slice(0, 4094)
