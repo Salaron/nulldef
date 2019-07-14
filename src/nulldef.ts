@@ -26,16 +26,21 @@ export var vk: Vk;
             await connection.commit()
             return
           } 
-          let result = await vkCommands.stt(connection, msg, ['force'])
-          if (!result.startsWith("Аудио")) return
+          let commands = new vkCommands(connection, msg, ['force'])
+          let result = await commands['stt']()
+          if (!result.startsWith("Аудио")) {
+            await connection.commit()
+            return
+          }
           await vk.setActivity(msg.peer_id, "typing")
           await vk.sendMessage(msg.peer_id, result)
         } else {
           msg.text = msg.text.replace(Config.bot.commandFlag, "")
           let args = msg.text.split(" ")
-          if ((<any>vkCommands)[args[0]] != undefined) {
+          let commands = new vkCommands(connection, msg, args)
+          if ((<any>commands)[args[0]] != undefined) {
             await vk.setActivity(msg.peer_id, "typing")
-            let result = await (<any>vkCommands)[args[0]](connection, msg, args)
+            let result = await (<any>commands)[args[0]]()
             await vk.sendMessage(msg.peer_id, result)
           }
         }

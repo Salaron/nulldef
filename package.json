@@ -1,6 +1,6 @@
 {
   "name": "nulldef",
-  "version": "1.0.0",
+  "version": "0.1",
   "description": "Yet another VK bot.",
   "main": "bot.js",
   "scripts": {

@@ -1,5 +1,5 @@
 import readline from "readline"
-import { log } from "../bot"
+import { log } from "../nulldef"
 import { Connection } from "./database"
 
 const readLineInterface = readline.createInterface({
