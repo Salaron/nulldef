@@ -1,58 +1,45 @@
-import { nullModule } from "../types/module"
-import { MessageContext } from "vk-io/typings/index"
-import { unloadModule, walk, loadModule } from "../utils"
-import { modules } from "../nulldef"
+import { NlModule, unloadModule, modulesList, loadModule, modules } from "../core/module"
+import { MessageContext } from "vk-io"
 
-export default class Module implements nullModule {
-  regExp = [/^unload/i, /^load/i, /^reload/i]
-  loadByDefault = true
+export default class extends NlModule {
+  public regExp = [/unloadmodule/i, /loadmodule/i]
+  public loadByDefault = true
+  public restrictUnload = true
 
-  public async execute(ctx: MessageContext, pattern: number) {
-    if (pattern >= 0 && pattern <= 1) {
-      if (ctx.text.split(" ").length != 2) {
-        throw new Error(`Not enought arguments`)
-      }
-    }
-    switch (pattern) {
-      case 0: { // unload module
-        let moduleName = `${ctx.text.split(" ")[1].replace(/^.*[\\\/]/, "")}`
-        if (moduleName === "admin") throw new Error(`Nice try.`)
-        if (unloadModule(`modules/${moduleName}`) === false) {
-          await ctx.send(`Module "${moduleName}" doesn't exists!`)
-          return
-        }
-        await ctx.send(await this.getModulesList())
+  public async execute(msgCtx: MessageContext, triggeredRegExp: number) {
+    switch (triggeredRegExp) {
+      case 0: {
+        await this.unload(msgCtx)
         return
       }
-
-      case 1: { // load module
-        let moduleName = `${ctx.text.split(" ")[1].replace(/^.*[\\\/]/, "")}`
-        if (await loadModule(`modules/${moduleName}`) === false) {
-          await ctx.send(`Module "${moduleName}" doesn't exists!`)
-          return
-        }
-        await ctx.send(await this.getModulesList())
-        return
-      }
-
-      case 2: { // reload all
-        for (let filePath of await walk("./modules", ".js")) {
-          await loadModule(filePath, true)
-        }
-        await ctx.send(await this.getModulesList())
+      case 1: {
+        await this.load(msgCtx)
         return
       }
     }
   }
 
-  private async getModulesList() {
-    let result = `List of available modules:\n`
-    for (const module of await walk("./modules", ".js")) {
-      let name = module.replace(/^.*[\\\/]/, "")
-      let status = "X"
-      if (modules[name] != undefined) status = "✓"
-      result += `[${status}] ${name}\n`
-    }
-    return result
+  private async unload(msgCtx: MessageContext) {
+    if (msgCtx.text.split(" ").length < 2)
+      throw new ErrorNotice(`Not enough arguments`)
+
+    let moduleName = msgCtx.text.split(" ")[1].replace(/^.*[\\/]/, "").replace(/\.[^/.]+$/, "")
+    if (modules[moduleName] && modules[moduleName]!.restrictUnload) 
+      throw new ErrorNotice(`Module "${moduleName}" can't be unloaded`)
+
+    if (unloadModule(moduleName) === false)
+      throw new ErrorNotice(`Module "${moduleName}" doesn't exists!`)
+
+    await msgCtx.send(await modulesList())
+  }
+  private async load(msgCtx: MessageContext) {
+    if (msgCtx.text.split(" ").length < 2)
+      throw new Error(`Not enough arguments`)
+
+    let moduleName = msgCtx.text.split(" ")[1].replace(/^.*[\\/]/, "").replace(/\.[^/.]+$/, "")
+    if (await loadModule(moduleName) === false)
+      throw new ErrorNotice(`Module "${moduleName}" doesn't exists!`)
+
+    await msgCtx.send(await modulesList())
   }
 }

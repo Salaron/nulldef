@@ -1,10 +1,11 @@
 {
   "name": "nulldef",
-  "version": "1.0.0",
+  "version": "1.0.5",
   "description": "",
   "main": "nulldef.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint ./src/ --ext .ts, .tsx"
   },
   "repository": {
     "type": "git",
@@ -16,22 +17,30 @@
     "url": "https://github.com/salaron/nulldef/issues"
   },
   "homepage": "https://github.com/salaron/nulldef#readme",
-  "devDependencies": {
-    "eslint": "^6.2.1",
-    "@typescript-eslint/eslint-plugin": "^2.0.0",
-    "@typescript-eslint/parser": "^2.0.0"
+  "prettier": {
+    "tabWidth": 2,
+    "semi": false,
+    "singleQuote": false,
+    "trailingComma": "none"
   },
-  "dependencies": {
+  "devDependencies": {
     "@types/cheerio": "^0.22.13",
     "@types/circular-json": "^0.4.0",
     "@types/extend": "^3.0.1",
-    "@types/node": "^12.7.2",
+    "@types/node": "^12.7.3",
     "@types/node-fetch": "^2.5.0",
     "@types/tough-cookie": "^2.3.5",
-    "@vk-io/session": "0.0.0-alpha.1",
+    "@typescript-eslint/eslint-plugin": "^2.0.0",
+    "@typescript-eslint/parser": "^2.0.0",
+    "eslint": "^6.3.0",
+    "eslint-import-resolver-typescript": "^1.1.1",
+    "eslint-plugin-import": "^2.18.2",
+    "eslint-plugin-json": "^1.4.0",
+    "typescript": "^3.6.2"
+  },
+  "dependencies": {
     "circular-json": "^0.5.9",
     "extend": "^3.0.2",
-    "typescript": "^3.5.3",
     "vk-io": "^4.0.0-rc.20"
   }
 }
