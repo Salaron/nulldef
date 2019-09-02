@@ -27,9 +27,12 @@
     "@types/cheerio": "^0.22.13",
     "@types/circular-json": "^0.4.0",
     "@types/extend": "^3.0.1",
+    "@types/mysql": "^2.15.7",
     "@types/node": "^12.7.3",
     "@types/node-fetch": "^2.5.0",
+    "@types/request-promise-native": "^1.0.16",
     "@types/tough-cookie": "^2.3.5",
+    "@types/ws": "^6.0.3",
     "@typescript-eslint/eslint-plugin": "^2.0.0",
     "@typescript-eslint/parser": "^2.0.0",
     "eslint": "^6.3.0",
@@ -39,8 +42,14 @@
     "typescript": "^3.6.2"
   },
   "dependencies": {
+    "cheerio-tableparser": "^1.0.1",
     "circular-json": "^0.5.9",
     "extend": "^3.0.2",
-    "vk-io": "^4.0.0-rc.20"
+    "moment": "^2.24.0",
+    "mysql": "^2.17.1",
+    "request": "^2.88.0",
+    "request-promise-native": "^1.0.7",
+    "vk-io": "^4.0.0-rc.20",
+    "ws": "^7.1.2"
   }
 }
