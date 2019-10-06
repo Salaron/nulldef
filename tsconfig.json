@@ -1,20 +1,21 @@
 {
   "compilerOptions": {
-    "incremental": true,
-    "target": "esnext",
-    "module": "commonjs", 
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "outDir": "./build/",
-    "rootDir": "./src/",
-    "preserveSymlinks": true,
-    "removeComments": true,
-    "strict": true,
-    "strictPropertyInitialization": false,
-    "alwaysStrict": true,
-    "allowSyntheticDefaultImports": true,
+    "module": "commonjs",
     "esModuleInterop": true,
-    "resolveJsonModule": true
-  }
+    "allowSyntheticDefaultImports": true,
+    "target": "es6",
+    "moduleResolution": "node",
+    "sourceMap": true,
+    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "*": [
+        "node_modules/*",
+        "src/typings/*"
+      ]
+    }
+  },
+  "include": [
+    "src/**/*"
+  ]
 }

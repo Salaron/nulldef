@@ -1,17 +1,19 @@
 import "./core/errors"
 import Config from "./config"
-import { VK, MessageContext } from "vk-io"
-import { timeStamp } from "./utils"
+import { VK } from "vk-io"
+import { timeStamp } from "./core/utils"
 import { Log } from "./core/log"
 import { modules, startUpLoad } from "./core/module"
 import { MySQLConnect } from "./core/mysql"
+import { NextMiddleware } from "middleware-io"
 
 const log = new Log("Main")
 export let bootTimestamp = timeStamp()
-;(async () => {
-  let vk = new VK({
+export let vk: VK;
+(async () => {
+  vk = new VK({
     token: Config.vkToken,
-    apiMode: "parallel"
+    //apiMode: "parallel"
   })
 
   let group = await vk.api.groups.getById({
@@ -27,14 +29,16 @@ export let bootTimestamp = timeStamp()
 
   // Catch all unhandled errors
   vk.updates.use(async (context, next) => {
+    context.connection = await MySQLconnection.get()
     try {
       await next()
     } catch (err) {
+      await context.connection.rollback()
       log.error(err, "Error Catcher")
     }
   })
 
-  async function messagesHandler(ctx: MessageContext) {
+  async function messagesHandler(ctx: MsgCtx, next: NextMiddleware) {
     log.debug(ctx, "Messages Handler")
     try {
       if (ctx.text && ctx.text.startsWith(Config.commandFlag)) {
@@ -55,8 +59,10 @@ export let bootTimestamp = timeStamp()
           }
         }
       }
+      if (!ctx.connection.released) await ctx.connection.commit()
     } catch (err) {
       if (err instanceof ErrorNotice) {
+        if (!ctx.connection.released) await ctx.connection.commit()
         return await ctx.send(err.message)
       }
 

@@ -5,7 +5,12 @@ export default {
   vkToken: "",
   witAiToken: "",
   yaToken: "",
+  yaFolderId: "",
   commandFlag: "/",
+  sgo: {
+    userName: "",
+    password: ""
+  },
   database: {
     autoReconnect: true,
     autoReconnectDelay: 2000,

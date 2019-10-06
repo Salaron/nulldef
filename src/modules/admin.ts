@@ -1,8 +1,14 @@
-import { NlModule, unloadModule, modulesList, loadModule, modules } from "../core/module"
+import {
+  NlModule,
+  unloadModule,
+  modulesList,
+  loadModule,
+  modules
+} from "../core/module"
 import { MessageContext } from "vk-io"
 
 export default class extends NlModule {
-  public regExp = [/unloadmodule/i, /loadmodule/i]
+  public regExp = [/^unload$/i, /^load$/i, /^reload$/i, /^status$/i]
   public loadByDefault = true
   public restrictUnload = true
 
@@ -16,30 +22,46 @@ export default class extends NlModule {
         await this.load(msgCtx)
         return
       }
+      case 2: {
+        await this.unload(msgCtx, false)
+        await this.load(msgCtx, false)
+        await msgCtx.send("Success!")
+        return
+      }
+      case 3: {
+        await msgCtx.send(await modulesList())
+        return
+      }
     }
   }
 
-  private async unload(msgCtx: MessageContext) {
+  private async unload(msgCtx: MessageContext, sendStatus = true) {
     if (msgCtx.text.split(" ").length < 2)
       throw new ErrorNotice(`Not enough arguments`)
 
-    let moduleName = msgCtx.text.split(" ")[1].replace(/^.*[\\/]/, "").replace(/\.[^/.]+$/, "")
-    if (modules[moduleName] && modules[moduleName]!.restrictUnload) 
+    let moduleName = msgCtx.text
+      .split(" ")[1]
+      .replace(/^.*[\\/]/, "")
+      .replace(/\.[^/.]+$/, "")
+    if (modules[moduleName] && modules[moduleName]!.restrictUnload)
       throw new ErrorNotice(`Module "${moduleName}" can't be unloaded`)
 
     if (unloadModule(moduleName) === false)
       throw new ErrorNotice(`Module "${moduleName}" doesn't exists!`)
 
-    await msgCtx.send(await modulesList())
+    if (sendStatus) await msgCtx.send(await modulesList())
   }
-  private async load(msgCtx: MessageContext) {
+  private async load(msgCtx: MessageContext, sendStatus = true) {
     if (msgCtx.text.split(" ").length < 2)
       throw new Error(`Not enough arguments`)
 
-    let moduleName = msgCtx.text.split(" ")[1].replace(/^.*[\\/]/, "").replace(/\.[^/.]+$/, "")
-    if (await loadModule(moduleName) === false)
+    let moduleName = msgCtx.text
+      .split(" ")[1]
+      .replace(/^.*[\\/]/, "")
+      .replace(/\.[^/.]+$/, "")
+    if ((await loadModule(moduleName)) === false)
       throw new ErrorNotice(`Module "${moduleName}" doesn't exists!`)
 
-    await msgCtx.send(await modulesList())
+    if (sendStatus) await msgCtx.send(await modulesList())
   }
 }

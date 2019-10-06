@@ -1,4 +1,3 @@
-import { MessageContext } from "vk-io"
 import { promisify } from "util"
 import { readdir, stat } from "fs"
 import { Log } from "./log"
@@ -14,9 +13,12 @@ export abstract class NlModule {
   public restrictUnload = false
 
   public abstract execute(
-    msgCtx: MessageContext,
+    msgCtx: MsgCtx,
     triggeredRegExp: number
   ): Promise<void>
+  public async init() {
+    
+  }
 }
 
 export async function startUpLoad() {
@@ -54,6 +56,7 @@ export async function loadModule(moduleName: string, startUp = false) {
     let module: NlModule = new file.default()
     if (!module.loadByDefault && startUp) unloadModule(moduleName)
     else {
+      if (module.init) await module.init()
       log.info(`Loaded module ${moduleName}`)
       modules[moduleName] = module
     }
@@ -68,7 +71,7 @@ export function unloadModule(moduleName: string): boolean {
   try {
     // remove from cache
     modules[moduleName] = undefined
-    require.cache[require.resolve(`../modules/${moduleName}`)]
+    delete require.cache[require.resolve(`../modules/${moduleName}`)]
     log.debug(`Module "${moduleName}" has been unloaded`)
     return true
   } catch (err) {
