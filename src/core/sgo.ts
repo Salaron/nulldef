@@ -308,26 +308,15 @@ export default class SGO {
     })
     if (typeof reportId != "number")
       throw new Error(`ReportId is not a number; ${reportId}`)
-
+      
     return new Promise((res, rej) => {
-      let maxAttempts = 15
-      let attempts = 0
-      function sendMsg() {
-        if (attempts >= maxAttempts) return rej("Max attempts reached")
-        attempts += 1
-        setTimeout(() => {
-          if (ws.readyState === 1) {
-            ws.send(`{"H":"queuehub","M":"StartTask","A":[${reportId}],"I":0}`)
-          } else {
-            sendMsg()
-          }
-        }, 5)
-      }
-      sendMsg()
-
       ws.on("message", function (data) {
         try {
           let msg = data.toString("utf-8")
+          if (msg === "{}") {
+            ws.send(`{"H":"queuehub","M":"StartTask","A":[${reportId}],"I":0}`)
+            return
+          }
           if (timeStamp() - startTS > 30) {
             throw new Error("Connection timeout")
           }
