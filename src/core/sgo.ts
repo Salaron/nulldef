@@ -480,16 +480,25 @@ export default class SGO {
     this.session.lastRequestDate = timeStamp()
     this.session.requestCount += 1
 
-    let response = await request({
-      timeout: 300000,
-      url: this.HOST + url,
-      headers: this.headers,
-      jar: this.cookie,
-      gzip: true,
-      form: options.data,
-      json: options.json,
-      method: options.method
-    })
-    return response
+    try {
+      let response = await request({
+        timeout: 300000,
+        url: this.HOST + url,
+        headers: this.headers,
+        jar: this.cookie,
+        gzip: true,
+        form: options.data,
+        json: options.json,
+        method: options.method
+      })
+      return response
+    } catch (err) {
+      if (err.statusCode === 401) {
+        await this.startNewSession()
+        await this.sendRequest(url, options)
+      } else {
+        throw err
+      }
+    }
   }
 }

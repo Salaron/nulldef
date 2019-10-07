@@ -28,7 +28,7 @@ export default class extends NlModule {
       } catch (err) {
         log.error(err)
       }
-    }, 10000) // 10 sec
+    }, 60000) // 60 sec
 
     // logout from sgo on any fatal error
     if (process.platform === "win32") {
