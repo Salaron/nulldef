@@ -1,12 +1,18 @@
 import { LEVEL } from "./core/log"
 
 export default {
-  logLevel: LEVEL.DEBUG,
-  vkToken: "",
-  witAiToken: "",
-  yaToken: "",
-  yaFolderId: "",
-  commandFlag: "/",
+  bot: {
+    logLevel: LEVEL.INFO,
+    vkToken: "",
+    defaultCommandFlag: "/",
+  },
+  witAi: {
+    token: ""
+  },
+  yaTTS: {
+    token: "",
+    folderId: ""
+  },
   sgo: {
     userName: "",
     password: ""

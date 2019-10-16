@@ -1,5 +1,5 @@
 /* eslint no-async-promise-executor: 0 */ // => I know about Uncaught errors in promise but there I handle that
-/* eslint require-atomic-updates: 0*/     // => Need to solve this in the future. TODO
+/* eslint require-atomic-updates: 0 */     // => Need to solve this in the future. TODO
 import * as mysql from "mysql"
 import { Log, LEVEL } from "./log"
 import extend from "extend"
@@ -7,15 +7,15 @@ import { promisify } from "util"
 import Config from "../config"
 
 const log = new Log("MySQL")
-interface PoolConfig extends mysql.PoolConfig {
+interface IPoolConfig extends mysql.PoolConfig {
   autoReconnect: boolean
   autoReconnectMaxAttempt: number
   autoReconnectDelay: number
-  disconnected: Function
+  disconnected: () => {}
 }
 
 export class ConnectionPool {
-  public config: PoolConfig
+  public config: IPoolConfig
   public pool: mysql.Pool
   public reconnectAttempts: number
   public freeConnections: mysql.PoolConnection[]
@@ -27,7 +27,7 @@ export class ConnectionPool {
       autoReconnect: true,
       autoReconnectDelay: 1000,
       autoReconnectMaxAttempt: 10,
-      disconnected: () => { },
+      disconnected: () => { }, // tslint:disable-line: no-empty
       dateStrings: true,
       queryFormat: formatQuery,
       charset: "utf8mb4",
@@ -45,7 +45,7 @@ export class ConnectionPool {
           await this.handleError(err)
         })
 
-        let connection = await Connection.get()
+        const connection = await Connection.get()
         await Promise.all([
           connection.query(`SET names utf8mb4`),
           connection.query(`SET SESSION group_concat_max_len = 4294967295`) // max of int32
@@ -138,7 +138,7 @@ export class ConnectionPool {
       }
 
       if (query.slice(-1) === ";") query = query.slice(0, -1) // remove ";" -- the end of query
-      // select only 1 element 
+      // select only 1 element
       connection.query(query + " LIMIT 1;", values, async (err, result) => {
         if (!transaction) (<mysql.PoolConnection>connection).release()
         if (err) {
@@ -155,7 +155,7 @@ export class ConnectionPool {
   }
 
   public connectionDebug(interval = 3000) {
-    if (typeof this.debugInterval === "undefined" && Config.logLevel >= LEVEL.DEBUG) {
+    if (typeof this.debugInterval === "undefined" && Config.bot.logLevel >= LEVEL.DEBUG) {
       log.debug(`Pool Connection Debug Info Enabled`)
       this.debugInterval = setInterval(() => {
         log.debug(`Pool connection limit: ${MySQLconnectionPool.config.connectionLimit}`)
@@ -172,7 +172,7 @@ export class ConnectionPool {
 
   private async getConnection(): Promise<mysql.PoolConnection> {
     return new Promise((res, rej) => {
-      this.pool.getConnection(async(err, connection) => {
+      this.pool.getConnection(async (err, connection) => {
         if (err) {
           rej(err)
         }
@@ -193,6 +193,10 @@ export class ConnectionPool {
 }
 
 export class Connection {
+  public static async get() {
+    const connection = await MySQLconnectionPool.beginTransaction()
+    return new Connection(connection)
+  }
   public connection: mysql.PoolConnection
   public released = false
   private lastQuery: string | undefined
@@ -202,12 +206,8 @@ export class Connection {
     }
     this.connection = connection
   }
-  static async get() {
-    let connection = await MySQLconnectionPool.beginTransaction()
-    return new Connection(connection)
-  }
 
-  async commit(releaseConnection = true) {
+  public async commit(releaseConnection = true) {
     this.checkIfReleased()
 
     if (releaseConnection === true) {
@@ -218,23 +218,23 @@ export class Connection {
       await MySQLconnectionPool.beginTransaction(this.connection)
     }
   }
-  async rollback() {
+  public async rollback() {
     this.checkIfReleased()
     await MySQLconnectionPool.rollback(this.connection)
     this.released = true
   }
 
-  async execute(query: string, values: any = {}, ignoreErrors?: boolean): Promise<any> {
+  public async execute(query: string, values: any = {}, ignoreErrors?: boolean): Promise<any> {
     this.checkIfReleased()
     this.lastQuery = query
     return await MySQLconnectionPool.query(query, values, this.connection, ignoreErrors)
   }
-  async query(query: string, values: any = {}, ignoreErrors?: boolean) {
+  public async query(query: string, values: any = {}, ignoreErrors?: boolean) {
     this.checkIfReleased()
     this.lastQuery = query
     return await MySQLconnectionPool.query(query, values, this.connection, ignoreErrors)
   }
-  async first(query: string, values: any = {}, ignoreErrors?: boolean) {
+  public async first(query: string, values: any = {}, ignoreErrors?: boolean) {
     this.checkIfReleased()
     this.lastQuery = query
     return await MySQLconnectionPool.first(query, values, this.connection, ignoreErrors)
@@ -249,14 +249,14 @@ export class Connection {
 export function formatQuery(query: string, values: any) {
   if (!values) return query
   if (Array.isArray(values)) {
-    return query.replace(/\?/g, function (txt: any) {
+    return query.replace(/\?/g, (txt: any) => {
       if (values.length > 0) {
         return mysql.escape(values.shift())
       }
       return txt
     })
   }
-  return query.replace(/:(\w+)/g, function (txt: any, key: any) {
+  return query.replace(/:(\w+)/g, (txt: any, key: any) => {
     if (Object.prototype.hasOwnProperty.call(values, key)) {
       return mysql.escape(values[key])
     }
@@ -268,7 +268,7 @@ let reconnectAttempts = 0
 export async function MySQLConnect() {
   try {
     (<any>global).MySQLconnectionPool = new ConnectionPool(extend({
-      disconnected: async function () {
+      async disconnected() {
         log.fatal("Lost connection to MySQL Database")
         process.exit(0)
       },

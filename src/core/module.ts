@@ -2,6 +2,7 @@ import { promisify } from "util"
 import { readdir, stat } from "fs"
 import { Log } from "./log"
 import path from "path"
+import { INullMessageContext } from "../handlers/message"
 
 const log = new Log("Module Manager")
 export let modules: { [filePath: string]: NlModule | undefined } = {}
@@ -12,18 +13,14 @@ export abstract class NlModule {
   public commandUsage: string
   public restrictUnload = false
 
-  public abstract execute(
-    msgCtx: MsgCtx,
-    triggeredRegExp: number
-  ): Promise<void>
-  public async init() {
-    
-  }
+  public abstract async init(): Promise<void>
+
+  public abstract execute(msgCtx: INullMessageContext, triggeredRegExp: number): Promise<void>
 }
 
 export async function startUpLoad() {
-  let files = await promisify(readdir)("./modules")
-  for (let file of files) {
+  const files = await promisify(readdir)("./modules")
+  for (const file of files) {
     const stats = await promisify(stat)(path.join("./modules", file))
     if (stats.isFile() && path.extname(file) === ".js") {
       await loadModule(path.basename(file, ".js"), true)
@@ -32,13 +29,13 @@ export async function startUpLoad() {
 }
 
 export async function modulesList() {
-  let files = await promisify(readdir)("./modules")
+  const files = await promisify(readdir)("./modules")
 
   let result = `List of available modules:\n`
-  for (let file of files) {
+  for (const file of files) {
     const stats = await promisify(stat)(path.join("./modules", file))
     if (stats.isFile() && path.extname(file) != ".js") continue
-    let moduleName = path.basename(file, ".js")
+    const moduleName = path.basename(file, ".js")
 
     let status = "X"
     if (modules[moduleName] != undefined) status = "✓"
@@ -49,11 +46,11 @@ export async function modulesList() {
 
 export async function loadModule(moduleName: string, startUp = false) {
   try {
-    let file = await import(`../modules/${moduleName}`)
+    const file = await import(`../modules/${moduleName}`)
     if (!file.default)
       throw new Error(`Module "${moduleName}" doesn't have default export!`)
 
-    let module: NlModule = new file.default()
+    const module: NlModule = new file.default()
     if (!module.loadByDefault && startUp) unloadModule(moduleName)
     else {
       if (module.init) await module.init()

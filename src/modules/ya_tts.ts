@@ -4,13 +4,17 @@ import request from "request-promise-native"
 import Config from "../config"
 import qs from "querystring"
 import { vk } from "../nulldef"
-
+import { ErrorNotice } from "../models/errors"
 
 export default class extends NlModule {
   public regExp = [/^tts/i]
   public loadByDefault = true
   public restrictUnload = false
-  public commandUsage = `${Config.commandFlag}say{1-6}[1-3] <текст> -- преобразует текст в речь. От 1 до 6 голос, от 1 до 3 интонация`
+  public commandUsage = `say{1-6 -- голос}[1-3 -- интонация] <текст> -- преобразует текст в речь`
+
+  public async init() {
+    return
+  }
 
   public async execute(msgCtx: MessageContext, triggeredRegExp: number) {
     switch (triggeredRegExp) {
@@ -23,13 +27,13 @@ export default class extends NlModule {
 
   public async tts(msgCtx: MessageContext) {
     if (msgCtx.text.substr(5).length === 0) throw new ErrorNotice("Текст отсутствует!")
-    let audio = await this.textToSpeech(msgCtx.text.substr(5), parseInt(msgCtx.text[3]), parseInt(msgCtx.text[4]) || 1)
-    
-    const attachment = await vk.upload.audioMessage({
-			peer_id: msgCtx.peerId,
+    const audio = await this.textToSpeech(msgCtx.text.substr(5), parseInt(msgCtx.text[3]), parseInt(msgCtx.text[4]) || 1)
 
-			source: Buffer.from(audio, "binary")
-    });
+    const attachment = await vk.upload.audioMessage({
+      peer_id: msgCtx.peerId,
+
+      source: Buffer.from(audio, "binary")
+    })
     // @ts-ignore
     await vk.api.messages.send({
       peer_id: msgCtx.peerId,
@@ -39,13 +43,13 @@ export default class extends NlModule {
   }
 
   private async textToSpeech(text: string, voiceId = 1, emotionId = 1) {
-    if (Config.yaToken.length === 0)
+    if (Config.yaTTS.token.length === 0)
       throw new Error(`Yandex OAuth token not exists`)
-    let iamToken = await request.post(
+    const iamToken = await request.post(
       "https://iam.api.cloud.yandex.net/iam/v1/tokens",
       {
         form: JSON.stringify({
-          yandexPassportOauthToken: Config.yaToken
+          yandexPassportOauthToken: Config.yaTTS.token
         }),
         json: true
       }
@@ -67,7 +71,7 @@ export default class extends NlModule {
     return await request.post(
       "https://tts.api.cloud.yandex.net/speech/v1/tts:synthesize?" +
       qs.stringify({
-        folderId: Config.yaFolderId
+        folderId: Config.yaTTS.folderId
       }),
       {
         gzip: true,

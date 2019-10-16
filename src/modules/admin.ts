@@ -6,11 +6,16 @@ import {
   modules
 } from "../core/module"
 import { MessageContext } from "vk-io"
+import { ErrorNotice } from "../models/errors"
 
 export default class extends NlModule {
   public regExp = [/^unload$/i, /^load$/i, /^reload$/i, /^status$/i]
   public loadByDefault = true
   public restrictUnload = true
+
+  public async init() {
+    return
+  }
 
   public async execute(msgCtx: MessageContext, triggeredRegExp: number) {
     switch (triggeredRegExp) {
@@ -39,7 +44,7 @@ export default class extends NlModule {
     if (msgCtx.text.split(" ").length < 2)
       throw new ErrorNotice(`Not enough arguments`)
 
-    let moduleName = msgCtx.text
+    const moduleName = msgCtx.text
       .split(" ")[1]
       .replace(/^.*[\\/]/, "")
       .replace(/\.[^/.]+$/, "")
@@ -55,7 +60,7 @@ export default class extends NlModule {
     if (msgCtx.text.split(" ").length < 2)
       throw new Error(`Not enough arguments`)
 
-    let moduleName = msgCtx.text
+    const moduleName = msgCtx.text
       .split(" ")[1]
       .replace(/^.*[\\/]/, "")
       .replace(/\.[^/.]+$/, "")

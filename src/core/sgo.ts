@@ -7,17 +7,19 @@ import querystring from "querystring"
 import WebSocket from "ws"
 import moment from "moment"
 
+// tslint:disable-next-line: no-var-requires
 const cheerio = require("cheerio")
+// tslint:disable-next-line: no-var-requires
 const cheerioTable = require("cheerio-tableparser")
 
-interface SgoOptions {
+interface ISGOCreateOptions {
   logger?: Log
   logLevel?: LEVEL
   host?: string
   username: string
   password: string
 }
-interface SgoSession {
+interface ISGOSession {
   AT: string
   userId: number
   name: string
@@ -27,12 +29,12 @@ interface SgoSession {
   lastRequestDate: number
   sessionStarted: number
 }
-interface SendRequestOptions {
+interface ISendRequestOptions {
   data?: any
   method: "POST" | "GET"
   json?: boolean
 }
-interface Subject {
+interface ISubject {
   name: string
   marks: {
     date: string
@@ -43,7 +45,7 @@ interface Subject {
   haveChanges: boolean
   avgMark: string
 }
-interface UserInfo {
+interface IUserInfo {
   schoolId: number
   userId: number
   nickName: string
@@ -54,26 +56,26 @@ interface UserInfo {
 
 export default class SGO {
   public HOST = "https://sgo.edu-74.ru/"
-  public session: SgoSession
+  public session: ISGOSession
 
   public log: Log
   public headers = {
-    Connection: "keep-alive",
-    Accept: "application/json, text/plain, */*",
+    "Connection": "keep-alive",
+    "Accept": "application/json, text/plain, */*",
     "User-Agent":
       "Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.39 Safari/537.36",
     "Accept-Encoding": "gzip, deflate, br",
     "Accept-Language":
       "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7,ja-JP;q=0.6,ja;q=0.5",
-    Referer: "https://sgo.edu-74.ru/",
-    at: undefined
+    "Referer": "https://sgo.edu-74.ru/",
+    "at": undefined
   }
 
   protected cookie = request.jar()
   protected username: string
   protected password: string
 
-  constructor(options: SgoOptions) {
+  constructor(options: ISGOCreateOptions) {
     if (options.logger instanceof Log) this.log = options.logger
     else this.log = new Log("SGO")
 
@@ -99,14 +101,14 @@ export default class SGO {
       method: "GET"
     })
 
-    let authData = await this.sendRequest(`webapi/auth/getdata`, {
+    const authData = await this.sendRequest(`webapi/auth/getdata`, {
       json: true,
       method: "POST"
     })
     this.session.LT = authData.lt
     this.session.VER = authData.ver
 
-    let pw2 = crypto
+    const pw2 = crypto
       .createHash("MD5")
       .update(
         authData.salt +
@@ -117,7 +119,7 @@ export default class SGO {
       )
       .digest("hex")
 
-    let requestData = {
+    const requestData = {
       LoginType: 1,
       cid: 2,
       sid: 1,
@@ -128,10 +130,10 @@ export default class SGO {
       UN: username,
       PW: pw2.slice(0, pass.length),
       lt: authData.lt,
-      pw2: pw2,
+      pw2,
       ver: authData.ver
     }
-    let response = await this.sendRequest(`webapi/login`, {
+    const response = await this.sendRequest(`webapi/login`, {
       json: true,
       data: requestData,
       method: "POST"
@@ -151,7 +153,7 @@ export default class SGO {
       data: { at: this.session.AT },
       method: "POST"
     })
-    let diary = await this.sendRequest("webapi/student/diary/init", {
+    const diary = await this.sendRequest("webapi/student/diary/init", {
       method: "GET",
       json: true
     })
@@ -162,19 +164,19 @@ export default class SGO {
   }
 
   public async getOnlineUsers() {
-    let users: UserInfo[] = await this.sendRequest("webapi/context/activeSessions", {
+    const users: IUserInfo[] = await this.sendRequest("webapi/context/activeSessions", {
       json: true,
       method: "GET"
     })
-    let result = {
-      users: users,
+    const result = {
+      users,
       students: 0,
       teachers: 0,
       parents: 0
     }
 
     for (const user of users) {
-      let roles: string[] = user.roles.split(" ")
+      const roles: string[] = user.roles.split(" ")
       if (roles.includes("У")) result.teachers += 1
       if (roles.includes("Ученик")) result.students += 1
       if (roles.includes("Родитель")) result.parents += 1
@@ -184,11 +186,11 @@ export default class SGO {
 
   public async logout(): Promise<boolean> {
     try {
-      let requestData = {
+      const requestData = {
         at: this.session.AT.toString(),
         ver: this.session.VER
       }
-      let response = await this.sendRequest(`asp/logout.asp`, {
+      const response = await this.sendRequest(`asp/logout.asp`, {
         data: requestData,
         method: "POST"
       })
@@ -201,12 +203,12 @@ export default class SGO {
   }
 
   public async connectToQueueHub() {
-    let requestData: any = {
+    const requestData: any = {
       clientProtocol: 1.5,
       at: this.session.AT,
       connectionData: "[{\"name\":\"queuehub\"}]"
     }
-    let negotiateRes = await this.sendRequest(
+    const negotiateRes = await this.sendRequest(
       `WebApi/signalr/negotiate?${querystring.stringify(requestData)}`,
       {
         json: true,
@@ -218,7 +220,7 @@ export default class SGO {
     requestData.transport = "webSockets"
     requestData.connectionToken = negotiateRes.ConnectionToken
     requestData.tid = Math.floor(Math.random() * 11)
-    let ws = new WebSocket(
+    const ws = new WebSocket(
       `wss://sgo.edu-74.ru/WebApi/signalr/connect?${querystring.stringify(
         requestData
       )}`,
@@ -230,10 +232,22 @@ export default class SGO {
       }
     )
     ws.on("open", () => this.log.debug(`Websocket opened`))
-    ws.on("close", () => this.log.debug(`Websocket destroyed`))
+    ws.on("close", async () => {
+      try {
+        await this.sendRequest(
+          `WebApi/signalr/abort?${querystring.stringify(requestData)}`,
+          {
+            json: true,
+            method: "GET"
+          }
+        )
+      } catch (err) {
+        this.log.error(err)
+      }
+    })
 
     requestData.tid = undefined // remove tid
-    let signalrRes = await this.sendRequest(
+    const signalrRes = await this.sendRequest(
       `WebApi/signalr/start?${querystring.stringify(requestData)}`,
       {
         json: true,
@@ -252,13 +266,13 @@ export default class SGO {
     endDate: string,
     websocket?: WebSocket
   ): Promise<string> {
-    let startTS = timeStamp()
-    let ws =
+    const startTS = timeStamp()
+    const ws =
       typeof websocket === "undefined"
         ? await this.connectToQueueHub()
         : websocket
 
-    let queueReqData = {
+    const queueReqData = {
       selectedData: [
         {
           filterId: "SID",
@@ -301,18 +315,18 @@ export default class SGO {
         }
       ]
     }
-    let reportId = await this.sendRequest(`webapi/reports/StudentTotal/queue`, {
+    const reportId = await this.sendRequest(`webapi/reports/StudentTotal/queue`, {
       json: true,
       data: queueReqData,
       method: "POST"
     })
     if (typeof reportId != "number")
       throw new Error(`ReportId is not a number; ${reportId}`)
-      
+
     return new Promise((res, rej) => {
-      ws.on("message", function (data) {
+      ws.on("message", data => {
         try {
-          let msg = data.toString("utf-8")
+          const msg = data.toString("utf-8")
           if (msg === "{}") {
             ws.send(`{"H":"queuehub","M":"StartTask","A":[${reportId}],"I":0}`)
             return
@@ -320,13 +334,13 @@ export default class SGO {
           if (timeStamp() - startTS > 30) {
             throw new Error("Connection timeout")
           }
-          let parsed = JSON.parse(msg)
+          const parsed = JSON.parse(msg)
           if (
             parsed["M"] &&
             parsed["M"].length > 0 &&
             parsed["M"][0]["M"] === "complete"
           ) {
-            let fileName = parsed["M"][0]["A"][0]["Data"]
+            const fileName = parsed["M"][0]["A"][0]["Data"]
             if (typeof websocket === "undefined") ws.close()
             return res(fileName)
           }
@@ -343,7 +357,7 @@ export default class SGO {
     year: number,
     studentId: number
   ) {
-    let table = await this.sendRequest("webapi/files/" + fileId, {
+    const table = await this.sendRequest("webapi/files/" + fileId, {
       method: "GET"
     })
     const months: { [month: string]: number } = {
@@ -361,23 +375,23 @@ export default class SGO {
       Декабрь: 12
     }
 
-    let $ = cheerio.load(table)
+    const $ = cheerio.load(table)
 
-    let subjectList: { [name: string]: Subject } = {}
+    const subjectList: { [name: string]: ISubject } = {}
 
     let haveChanges = false
-    let _lastMonth = null
+    let _lastMonth = null // tslint:disable-line
     cheerioTable($)
     const user = $(".select").eq(3).text().substring(8)
-    let data = $(".table-print").parsetable(true, true, true)
+    const data = $(".table-print").parsetable(true, true, true)
     // first element is a header of table (subjects list)
-    for (let tr = 0; tr < data.length; tr++) {
+    for (let tr = 0; tr < data.length; tr++) { // tslint:disable-line
       for (let th = 2; th < data[tr].length; th++) {
         if (data[tr][0] === "Предмет") {
           let name = data[tr][th].trimEnd()
           if (name[name.length - 1] === ".") name = name.slice(0, -1)
           subjectList[th] = {
-            name: name,
+            name,
             marks: [],
             haveChanges: false,
             avgMark: ""
@@ -386,7 +400,7 @@ export default class SGO {
 
         if (months[data[tr][0]] && data[tr][th] != "") {
           if (_lastMonth != null && months[data[tr][0]] < _lastMonth) year += 1
-          let dayDetail = {
+          const dayDetail = {
             date: `${months[data[tr][0]]}-${data[tr][1]}`,
             marks: data[tr][th].split(/\s+/g),
             marksRemoved: <string[]>[],
@@ -394,7 +408,7 @@ export default class SGO {
           }
 
           // what marks did removed
-          let existingMarks = (await MySQLconnectionPool.query(
+          const existingMarks = (await MySQLconnectionPool.query(
             "SELECT mark FROM sgo_marks WHERE user_id = :user AND date = :date AND subject = :subject",
             {
               user: studentId,
@@ -412,9 +426,9 @@ export default class SGO {
             }
           )
 
-          let _insertValues = []
+          let _insertValues = [] // tslint:disable-line
           // what marks did added
-          for (let mark of dayDetail.marks) {
+          for (const mark of dayDetail.marks) {
             if (!existingMarks.includes(mark)) {
               dayDetail.marksAdded.push(mark)
               haveChanges = true
@@ -464,7 +478,7 @@ export default class SGO {
 
   protected async sendRequest(
     url: string,
-    options: SendRequestOptions
+    options: ISendRequestOptions
   ): Promise<any> {
     this.log.debug(`Sending request to endpoint: ${url}`, "Send Request")
     if (options && options.data) this.log.verbose(options.data, "Send Request")
@@ -481,7 +495,7 @@ export default class SGO {
     this.session.requestCount += 1
 
     try {
-      let response = await request({
+      const response = await request({
         timeout: 300000,
         url: this.HOST + url,
         headers: this.headers,

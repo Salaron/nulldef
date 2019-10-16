@@ -14,5 +14,11 @@ CREATE TABLE `sgo_marks` (
 	`subject` VARCHAR(50) NOT NULL DEFAULT '',
 	`date` TIMESTAMP NOT NULL,
 	`mark` VARCHAR(50) NOT NULL DEFAULT '',
-	CONSTRAINT `FK_sgo_marks_user` FOREIGN KEY (`user_id`) REFERENCES `sgo_users` (`user_id`) ON UPDATE CASCADE ON DELETE CASCADE
+) COLLATE='utf8mb4_general_ci';
+
+CREATE TABLE `null_peer_params` (
+	`peer_id` INT NULL,
+	`name` VARCHAR(50) NULL DEFAULT NULL,
+	`value` VARCHAR(50) NULL DEFAULT NULL,
+	PRIMARY KEY (`peer_id`, `name`)
 ) COLLATE='utf8mb4_general_ci';

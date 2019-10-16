@@ -24,9 +24,9 @@ export enum LEVEL {
 }
 
 export class Log {
-  public options: CreatedOptions
+  public options: ICreateOptions
 
-  constructor(defaultLabel?: string | CreateOptions, options?: CreateOptions) {
+  constructor(defaultLabel?: string | Partial<ICreateOptions>, options?: Partial<ICreateOptions>) {
     if (typeof defaultLabel != "string" && typeof defaultLabel === "object")
       options = defaultLabel
     if (typeof options === "undefined")
@@ -42,7 +42,8 @@ export class Log {
     )
       options.defaultLabel = defaultLabel
 
-    const defOptions: CreateOptions = {
+    const defOptions = {
+      showTime: true,
       labelSize: defLabelSize,
       label: {
         fatal: new Label(
@@ -91,7 +92,7 @@ export class Log {
       output: [new Output(process.stdout, process.stdout.write, true, false)]
     }
 
-    this.options = <CreatedOptions>extend(true, {}, defOptions, options)
+    this.options = <ICreateOptions>extend(true, {}, defOptions, options)
   }
 
   public verbose(
@@ -104,7 +105,7 @@ export class Log {
         this.options.label.verbose.size,
         this.options.label.verbose.color
       )
-    if (Config.logLevel >= LEVEL.VERBOSE) this.writeOutput(label, message)
+    if (Config.bot.logLevel >= LEVEL.VERBOSE) this.writeOutput(label, message)
   }
   public debug(message: any, label: Label | string = this.options.label.debug) {
     if (typeof label === "string")
@@ -113,7 +114,7 @@ export class Log {
         this.options.label.debug.size,
         this.options.label.debug.color
       )
-    if (Config.logLevel >= LEVEL.DEBUG) this.writeOutput(label, message)
+    if (Config.bot.logLevel >= LEVEL.DEBUG) this.writeOutput(label, message)
   }
   public info(message: any, label: Label | string = this.options.label.info) {
     if (typeof label === "string")
@@ -122,7 +123,7 @@ export class Log {
         this.options.label.info.size,
         this.options.label.info.color
       )
-    if (Config.logLevel >= LEVEL.INFO) this.writeOutput(label, message)
+    if (Config.bot.logLevel >= LEVEL.INFO) this.writeOutput(label, message)
   }
   public async warn(
     message: any,
@@ -134,7 +135,7 @@ export class Log {
         this.options.label.warn.size,
         this.options.label.warn.color
       )
-    if (Config.logLevel >= LEVEL.WARN) this.writeOutput(label, message)
+    if (Config.bot.logLevel >= LEVEL.WARN) this.writeOutput(label, message)
   }
   public async error(
     message: any,
@@ -146,7 +147,7 @@ export class Log {
         this.options.label.error.size,
         this.options.label.error.color
       )
-    if (Config.logLevel >= LEVEL.ERROR) this.writeOutput(label, message)
+    if (Config.bot.logLevel >= LEVEL.ERROR) this.writeOutput(label, message)
   }
   public fatal(message: any, label: Label | string = this.options.label.fatal) {
     if (typeof label === "string")
@@ -155,7 +156,7 @@ export class Log {
         this.options.label.fatal.size,
         this.options.label.fatal.color
       )
-    if (Config.logLevel >= LEVEL.FATAL) this.writeOutput(label, message)
+    if (Config.bot.logLevel >= LEVEL.FATAL) this.writeOutput(label, message)
   }
   public always(
     message: any,
@@ -167,7 +168,7 @@ export class Log {
         this.options.label.always.size,
         this.options.label.always.color
       )
-    if (Config.logLevel >= LEVEL.ALWAYS) this.writeOutput(label, message)
+    if (Config.bot.logLevel >= LEVEL.ALWAYS) this.writeOutput(label, message)
   }
 
   public inspect(object: any, options: util.InspectOptions = { depth: null }) {
@@ -392,23 +393,9 @@ export class Log {
   }
 }
 
-interface CreateOptions {
+interface ICreateOptions {
   labelSize?: number
-  defaultLabel?: string
   inspectOptions?: util.InspectOptions
-  label?: {
-    fatal?: Label
-    error?: Label
-    warn?: Label
-    info?: Label
-    debug?: Label
-    verbose?: Label
-    always?: Label
-  }
-  showTime?: boolean
-  output?: Output[]
-}
-interface CreatedOptions extends CreateOptions {
   defaultLabel: string
   label: {
     fatal: Label
@@ -427,11 +414,11 @@ export class Output {
   public removeColor: boolean
   public addNewLine: boolean
   public out: any
-  public writeFunc: Function
+  public writeFunc: any
 
   constructor(
     out: any,
-    writeFunction: Function,
+    writeFunction: any,
     newLine = true,
     removeColor = false
   ) {
@@ -463,8 +450,8 @@ export class Label {
   }
 }
 class Color {
-  public foreground: Function
-  public background: Function
+  public foreground: any
+  public background: any
 
   constructor(background: string, foreground: string) {
     const chalk = Chalk as any // fix compiler error
