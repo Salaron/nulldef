@@ -20,7 +20,7 @@ export default class extends NlModule {
     password: Config.sgo.password,
     logger: log
   })
-  private jourlalUpdateDate = (timeStamp() - 3600) * 1000 // substract 1 hour
+  private jourlalUpdateDate = 0
 
   public async init() {
     if (Config.sgo.userName.length === 0 || Config.sgo.password.length === 0) throw new Error(`credentials is missing`)
@@ -110,11 +110,12 @@ export default class extends NlModule {
     if (ctx && !sendTo.includes(ctx.peerId)) {
       sendTo.push(ctx.peerId)
     }
+
     if (result.length === 0) return
-    for (const peerId of sendTo) {
-      while (result.length != 0) {
-        const short = result.slice(0, 4000)
-        result = result.replace(short, "")
+    while (result.length != 0) {
+      const short = result.slice(0, 4000)
+      result = result.replace(short, "")
+      for (const peerId of sendTo) {
         await vk.api.messages.send({
           message: short,
           peer_id: peerId
