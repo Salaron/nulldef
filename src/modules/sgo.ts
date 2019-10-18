@@ -1,11 +1,13 @@
 import { NlModule } from "../core/module"
-import { timeStamp } from "../core/utils"
+import { timeStamp, sendMessageToAdmins } from "../core/utils"
 import { Log } from "../core/log"
 import sgo from "../core/sgo"
 import moment from "moment"
 import Config from "../config"
 import { INullMessageContext } from "../handlers/message"
 import { ErrorNotice } from "../models/errors"
+import config from "../config"
+import { vk } from "../nulldef"
 
 const log = new Log("SGO")
 
@@ -18,18 +20,38 @@ export default class extends NlModule {
     password: Config.sgo.password,
     logger: log
   })
+  private jourlalUpdateDate = (timeStamp() - 3600) * 1000 // substract 1 hour
 
   public async init() {
     if (Config.sgo.userName.length === 0 || Config.sgo.password.length === 0) throw new Error(`credentials is missing`)
-    const that = this
-    that.client.startNewSession()
+
+    await this.client.startNewSession()
+    if (this.client.session.name.length === 0) throw new Error("Could not log in")
+
     setInterval(async () => {
+      if (!moment().isBetween(moment(config.sgo.activityStartTime, "HH:mm"), moment(config.sgo.activityEndTime, "HH:mm"))) return
       try {
-        await that.updateOnline()
+        await this.updateOnline()
       } catch (err) {
         log.error(err)
       }
     }, 60000) // 60 sec
+
+    setInterval(async () => {
+      if (!moment().isBetween(moment(config.sgo.activityStartTime, "HH:mm"), moment(config.sgo.activityEndTime, "HH:mm"))) return
+      try {
+        const report = await this.client.getJournalAccessReport()
+        const updateDate = (await report.parseReport()).updateDate
+        console.log(updateDate)
+        if (!moment(this.jourlalUpdateDate).isBefore(moment(updateDate, "DD.MM.YYYY HH:mm"))) return
+        console.log("Yes")
+        this.jourlalUpdateDate = timeStamp() * 1000
+        await this.updateMarks()
+        console.log("Done ", this.jourlalUpdateDate)
+      } catch (err) {
+        log.error(err)
+      }
+    }, 3600000) // 60 min
 
     // logout from sgo on any fatal error
     if (process.platform === "win32") {
@@ -45,7 +67,7 @@ export default class extends NlModule {
 
     process.on("SIGINT", async () => {
       log.info(`Logout...`)
-      if (timeStamp() - that.client.session.lastRequestDate < 3600) await that.client.logout()
+      if (timeStamp() - this.client.session.lastRequestDate < 3600) await this.client.logout()
       process.exit()
     })
   }
@@ -61,8 +83,8 @@ export default class extends NlModule {
         return
       }
       case 2: {
-        if (context.text.substr(8).length === 0) throw new ErrorNotice("Имя отсутствует!")
-        await context.send(await this.getLastLogin(context.text.substr(8)))
+        if (context.text.substr(10).length === 0) throw new ErrorNotice("Имя отсутствует!")
+        await context.send(await this.getLastLogin(context.text.substr(10)))
         return
       }
     }
@@ -70,7 +92,7 @@ export default class extends NlModule {
 
   private async updateOnline() {
     const online = await this.client.getOnlineUsers()
-    let result = `Сейчас в сетевой хуите ${online.students + online.parents + online.teachers} человеков:\n`
+    let result = `Сейчас в сети ${online.students + online.parents + online.teachers} человеков:\n`
     await Promise.all(online.users.map(async user => {
       user.class = ""
       result += `-- ${user.nickName}\n`
@@ -80,8 +102,34 @@ export default class extends NlModule {
     return result
   }
 
-  private async updateMarks(ctx: INullMessageContext) {
+  private async updateMarks(ctx?: INullMessageContext) {
+    let result = await this.getMarksChanges()
+    if (ctx && result.length === 0) return await ctx.send(`Пока ничего нового :с`)
 
+    const sendTo = config.sgo.sendMarksInfoToPeerIds.slice()
+    if (ctx && !sendTo.includes(ctx.peerId)) {
+      sendTo.push(ctx.peerId)
+    }
+    if (result.length === 0) return
+    for (const peerId of sendTo) {
+      while (result.length != 0) {
+        const short = result.slice(0, 4000)
+        result = result.replace(short, "")
+        await vk.api.messages.send({
+          message: short,
+          peer_id: peerId
+        })
+      }
+    }
+  }
+
+  private async getLastLogin(name: string) {
+    const data = await MySQLconnectionPool.first(`SELECT last_login FROM sgo_users WHERE name LIKE "%${name}%"`)
+    if (!data) throw new ErrorNotice(`Пользователь отсутствует в базе данных!`)
+    return data.last_login
+  }
+
+  private async getMarksChanges() {
     let result: any[] = []
     const classes = {
       1045714: ["1564535", "1564536", "1564591", "1564592", "1558608", "1564537", "1564538", "1564540", "1564541", "1564543", "1564547", "1564594", "1564596", "1564548", "1564549", "1564600", "1564553", "1564554", "1564605", "1564555", "1564556", "1564557", "1564559", "1564560", "1564610", "1564563"],
@@ -90,54 +138,40 @@ export default class extends NlModule {
     for (const cl of Object.keys(classes)) {
       result = [].concat(await Promise.all(classes[cl].map(async (user: string) => {
         try {
-          const file = await this.client.getReportFileId(parseInt(user), parseInt(cl), `01.01.2019`, moment().add(1, "week").format("DD.MM.YYYY"))
-          return await this.client.parseReport(file, new Date().getFullYear(), parseInt(user))
+          const report = await this.client.getStudentTotalReport(parseInt(user), parseInt(cl), `01.01.2019`, moment().add(1, "week").format("DD.MM.YYYY"))
+          return await report.parseReport(new Date().getFullYear(), parseInt(user))
         } catch (err) {
-          await ctx.send(`Во время обработки одного из отчётов произошла ошибка: ${err.message}`)
+          await sendMessageToAdmins(`Во время обработки одного из отчётов произошла ошибка: ${err.message}`)
         }
       })), result)
     }
 
-    let r = ""
-    let updated = false
+    let out = ""
     result.map(userMarks => {
       if (!userMarks || userMarks.haveChanges === false) return
-      updated = true
-      r += `${userMarks.user}:\n`
+      out += `${userMarks.user}:\n`
       userMarks.result.map(subject => {
         if (subject.avgMark === "" || subject.haveChanges === false) return
-        r += `-- ${subject.name} { `
+        out += `-- ${subject.name} { `
         let init = false
         subject.marks.map(day => {
-          if (init === true && (day.marksRemoved.length > 0 || day.marksAdded.length > 0)) r += `, `
+          if (init === true && (day.marksRemoved.length > 0 || day.marksAdded.length > 0)) out += `, `
           if (day.marksRemoved.length > 0) {
             init = true
-            r += `${day.marksRemoved.join(` (rm) [${day.date}], `)}`
-            r += ` (rm) [${day.date}] ` // last date
+            out += `${day.marksRemoved.join(` (rm) [${day.date}], `)}`
+            out += ` (rm) [${day.date}] ` // last date
           }
           if (day.marksAdded.length > 0) {
             init = true
-            r += `${day.marksAdded.join(` [${day.date}], `)}`
-            r += ` [${day.date}]` // last date
+            out += `${day.marksAdded.join(` [${day.date}], `)}`
+            out += ` [${day.date}]` // last date
           }
         })
-        r += ` } (avg: ${subject.avgMark})\n`
+        out += ` } (avg: ${subject.avgMark})\n`
       })
-      r += `\n\n`
+      out += `\n\n`
     })
-    if (!updated) r = `Пока ничего нового :с`
 
-    while (r.length != 0) {
-      const short = r.slice(0, 4000)
-      r = r.replace(short, "")
-      await ctx.send(short)
-    }
-    return r
-  }
-
-  private async getLastLogin(name: string) {
-    const data = await MySQLconnectionPool.first(`SELECT last_login FROM sgo_users WHERE name LIKE "%${name}%"`)
-    if (!data) throw new ErrorNotice(`Пользователь отсутствует в базе данных!`)
-    return data.lastLogin
+    return out
   }
 }

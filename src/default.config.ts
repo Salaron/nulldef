@@ -5,6 +5,7 @@ export default {
     logLevel: LEVEL.INFO,
     vkToken: "",
     defaultCommandFlag: "/",
+    adminPeerIds: []
   },
   witAi: {
     token: ""
@@ -15,7 +16,10 @@ export default {
   },
   sgo: {
     userName: "",
-    password: ""
+    password: "",
+    activityStartTime: "05:00",
+    activityEndTime: "23:59",
+    sendMarksInfoToPeerIds: []
   },
   database: {
     autoReconnect: true,

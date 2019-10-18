@@ -6,11 +6,7 @@ import crypto from "crypto"
 import querystring from "querystring"
 import WebSocket from "ws"
 import moment from "moment"
-
-// tslint:disable-next-line: no-var-requires
-const cheerio = require("cheerio")
-// tslint:disable-next-line: no-var-requires
-const cheerioTable = require("cheerio-tableparser")
+import { StudentTotalReport, JournalAccessReport } from "../models/reports"
 
 interface ISGOCreateOptions {
   logger?: Log
@@ -34,17 +30,7 @@ interface ISendRequestOptions {
   method: "POST" | "GET"
   json?: boolean
 }
-interface ISubject {
-  name: string
-  marks: {
-    date: string
-    marks: string[]
-    marksRemoved: string[]
-    marksAdded: string[]
-  }[]
-  haveChanges: boolean
-  avgMark: string
-}
+
 interface IUserInfo {
   schoolId: number
   userId: number
@@ -138,7 +124,7 @@ export default class SGO {
       data: requestData,
       method: "POST"
     })
-    if (response.entryPoint != `/angular/school/studentdiary/`)
+    if (response.entryPoint != `/angular/school/studentdiary/` && response.requestData.atlist.length > 0)
       this.log.warn(
         `You have ${
         response.requestData.atlist.split("\u0001").length
@@ -202,75 +188,14 @@ export default class SGO {
     }
   }
 
-  public async connectToQueueHub() {
-    const requestData: any = {
-      clientProtocol: 1.5,
-      at: this.session.AT,
-      connectionData: "[{\"name\":\"queuehub\"}]"
-    }
-    const negotiateRes = await this.sendRequest(
-      `WebApi/signalr/negotiate?${querystring.stringify(requestData)}`,
-      {
-        json: true,
-        method: "GET"
-      }
-    )
-
-    // connect to signalr using webSocket
-    requestData.transport = "webSockets"
-    requestData.connectionToken = negotiateRes.ConnectionToken
-    requestData.tid = Math.floor(Math.random() * 11)
-    const ws = new WebSocket(
-      `wss://sgo.edu-74.ru/WebApi/signalr/connect?${querystring.stringify(
-        requestData
-      )}`,
-      {
-        headers: {
-          Cookie: this.cookie.getCookieString(this.HOST)
-        },
-        handshakeTimeout: 300000
-      }
-    )
-    ws.on("open", () => this.log.debug(`Websocket opened`))
-    ws.on("close", async () => {
-      try {
-        await this.sendRequest(
-          `WebApi/signalr/abort?${querystring.stringify(requestData)}`,
-          {
-            json: true,
-            method: "GET"
-          }
-        )
-      } catch (err) {
-        this.log.error(err)
-      }
-    })
-
-    requestData.tid = undefined // remove tid
-    const signalrRes = await this.sendRequest(
-      `WebApi/signalr/start?${querystring.stringify(requestData)}`,
-      {
-        json: true,
-        method: "GET"
-      }
-    )
-    if (signalrRes.Response != "started") throw new Error(signalrRes)
-
-    return ws
-  }
-
-  public async getReportFileId(
+  public async getStudentTotalReport(
     studentId: number,
     pclid: number,
     startDate: string,
-    endDate: string,
-    websocket?: WebSocket
-  ): Promise<string> {
+    endDate: string
+  ): Promise<StudentTotalReport> {
     const startTS = timeStamp()
-    const ws =
-      typeof websocket === "undefined"
-        ? await this.connectToQueueHub()
-        : websocket
+    const ws = await this.connectToQueueHub()
 
     const queueReqData = {
       selectedData: [
@@ -341,142 +266,87 @@ export default class SGO {
             parsed["M"][0]["M"] === "complete"
           ) {
             const fileName = parsed["M"][0]["A"][0]["Data"]
-            if (typeof websocket === "undefined") ws.close()
-            return res(fileName)
+            ws.close()
+            return res(new StudentTotalReport(fileName, this))
           }
         } catch (err) {
-          if (typeof websocket === "undefined") ws.close()
+          ws.close()
           rej(err)
         }
       })
     })
   }
 
-  public async parseReport(
-    fileId: string,
-    year: number,
-    studentId: number
-  ) {
-    const table = await this.sendRequest("webapi/files/" + fileId, {
-      method: "GET"
+  public async getJournalAccessReport(): Promise<JournalAccessReport> {
+    const startTS = timeStamp()
+    const ws = await this.connectToQueueHub()
+
+    const reqData = {
+      selectedData: [
+        {
+          filterId: "PCLID_IUP",
+          filterValue: "11_1",
+          filterText: "11 *"
+        }
+      ],
+      params: [
+        {
+          name: "SCHOOLYEARID",
+          value: "623126"
+        },
+        {
+          name: "SERVERTIMEZONE",
+          value: 5
+        },
+        {
+          name: "FULLSCHOOLNAME",
+          value: "Муниципальное бюджетное общеобразовательное учреждение «Средняя общеобразовательная школа № 9 (имени В.И. Новикова) г. Куса»"
+        },
+        {
+          name: "DATEFORMAT",
+          value: "d\u0001mm\u0001yy\u0001."
+        }
+      ]
+    }
+
+    const reportId = await this.sendRequest(`webapi/reports/JournalAccess/queue`, {
+      json: true,
+      data: reqData,
+      method: "POST"
     })
-    const months: { [month: string]: number } = {
-      Январь: 1,
-      Февраль: 2,
-      Март: 3,
-      Апрель: 4,
-      Май: 5,
-      Июнь: 6,
-      Июль: 7,
-      Август: 8,
-      Сентябрь: 9,
-      Октябрь: 10,
-      Ноябрь: 11,
-      Декабрь: 12
-    }
+    if (typeof reportId != "number")
+      throw new Error(`ReportId is not a number; ${reportId}`)
 
-    const $ = cheerio.load(table)
-
-    const subjectList: { [name: string]: ISubject } = {}
-
-    let haveChanges = false
-    let _lastMonth = null // tslint:disable-line
-    cheerioTable($)
-    const user = $(".select").eq(3).text().substring(8)
-    const data = $(".table-print").parsetable(true, true, true)
-    // first element is a header of table (subjects list)
-    for (let tr = 0; tr < data.length; tr++) { // tslint:disable-line
-      for (let th = 2; th < data[tr].length; th++) {
-        if (data[tr][0] === "Предмет") {
-          let name = data[tr][th].trimEnd()
-          if (name[name.length - 1] === ".") name = name.slice(0, -1)
-          subjectList[th] = {
-            name,
-            marks: [],
-            haveChanges: false,
-            avgMark: ""
+    return new Promise((res, rej) => {
+      ws.on("message", data => {
+        try {
+          const msg = data.toString("utf-8")
+          if (msg === "{}") {
+            ws.send(`{"H":"queuehub","M":"StartTask","A":[${reportId}],"I":0}`)
+            return
           }
+          if (timeStamp() - startTS > 30) {
+            throw new Error("Connection timeout")
+          }
+          const parsed = JSON.parse(msg)
+          if (
+            parsed["M"] &&
+            parsed["M"].length > 0 &&
+            parsed["M"][0]["M"] === "complete"
+          ) {
+            const fileName = parsed["M"][0]["A"][0]["Data"]
+            ws.close()
+            return res(new JournalAccessReport(fileName, this))
+          }
+        } catch (err) {
+          ws.close()
+          rej(err)
         }
-
-        if (months[data[tr][0]] && data[tr][th] != "") {
-          if (_lastMonth != null && months[data[tr][0]] < _lastMonth) year += 1
-          const dayDetail = {
-            date: `${months[data[tr][0]]}-${data[tr][1]}`,
-            marks: data[tr][th].split(/\s+/g),
-            marksRemoved: <string[]>[],
-            marksAdded: <string[]>[]
-          }
-
-          // what marks did removed
-          const existingMarks = (await MySQLconnectionPool.query(
-            "SELECT mark FROM sgo_marks WHERE user_id = :user AND date = :date AND subject = :subject",
-            {
-              user: studentId,
-              subject: subjectList[th].name,
-              date: new Date(`${year}-${months[data[tr][0]]}-${data[tr][1]}`)
-            }
-          )).map(
-            (mark: any) => {
-              if (!dayDetail.marks.includes(mark.mark)) {
-                subjectList[th].haveChanges = true
-                haveChanges = true
-                dayDetail.marksRemoved.push(mark.mark)
-              }
-              return mark.mark
-            }
-          )
-
-          let _insertValues = [] // tslint:disable-line
-          // what marks did added
-          for (const mark of dayDetail.marks) {
-            if (!existingMarks.includes(mark)) {
-              dayDetail.marksAdded.push(mark)
-              haveChanges = true
-              subjectList[th].haveChanges = true
-              _insertValues.push(`(:user, :subject, :date, '${mark}')`)
-            }
-          }
-
-          if (dayDetail.marksRemoved.length > 0) {
-            await MySQLconnectionPool.query(
-              `DELETE FROM sgo_marks WHERE user_id = :user AND date = :date AND subject = :subject AND mark IN ("${dayDetail.marksRemoved.join('", "')}")`,
-              {
-                user: studentId,
-                subject: subjectList[th].name,
-                date: new Date(`${year}-${months[data[tr][0]]}-${data[tr][1]}`)
-              }
-            )
-          }
-          if (_insertValues.length > 0) {
-            await MySQLconnectionPool.query(
-              "INSERT INTO sgo_marks (user_id, subject, date, mark) VALUES " +
-              _insertValues.join(","),
-              {
-                user: studentId,
-                subject: subjectList[th].name,
-                date: new Date(`${year}-${months[data[tr][0]]}-${data[tr][1]}`)
-              }
-            )
-          }
-
-          subjectList[th].marks.push(dayDetail)
-          _lastMonth = months[data[tr][0]]
-        }
-
-        if (data[tr][0] === "Средняя оценка") {
-          subjectList[th].avgMark = data[tr][th]
-        }
-      }
-    }
-
-    return {
-      user,
-      haveChanges,
-      result: Object.values(subjectList)
-    }
+      })
+    })
   }
 
-  protected async sendRequest(
+  public async sendRequest(
     url: string,
     options: ISendRequestOptions
   ): Promise<any> {
@@ -514,5 +384,62 @@ export default class SGO {
         throw err
       }
     }
+  }
+
+  protected async connectToQueueHub() {
+    const requestData: any = {
+      clientProtocol: 1.5,
+      at: this.session.AT,
+      connectionData: "[{\"name\":\"queuehub\"}]"
+    }
+    const negotiateRes = await this.sendRequest(
+      `WebApi/signalr/negotiate?${querystring.stringify(requestData)}`,
+      {
+        json: true,
+        method: "GET"
+      }
+    )
+
+    // connect to signalr using webSocket
+    requestData.transport = "webSockets"
+    requestData.connectionToken = negotiateRes.ConnectionToken
+    requestData.tid = Math.floor(Math.random() * 11)
+    const ws = new WebSocket(
+      `wss://sgo.edu-74.ru/WebApi/signalr/connect?${querystring.stringify(
+        requestData
+      )}`,
+      {
+        headers: {
+          Cookie: this.cookie.getCookieString(this.HOST)
+        },
+        handshakeTimeout: 300000
+      }
+    )
+    ws.on("open", () => this.log.debug(`Websocket opened`))
+    ws.on("close", async () => {
+      try {
+        await this.sendRequest(
+          `WebApi/signalr/abort?${querystring.stringify(requestData)}`,
+          {
+            json: true,
+            method: "GET"
+          }
+        )
+      } catch (err) {
+        this.log.error(err)
+      }
+    })
+
+    requestData.tid = undefined // remove tid
+    const signalrRes = await this.sendRequest(
+      `WebApi/signalr/start?${querystring.stringify(requestData)}`,
+      {
+        json: true,
+        method: "GET"
+      }
+    )
+    if (signalrRes.Response != "started") throw new Error(signalrRes)
+
+    return ws
   }
 }
