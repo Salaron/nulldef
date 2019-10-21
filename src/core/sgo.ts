@@ -252,10 +252,12 @@ export default class SGO {
       ws.on("message", data => {
         try {
           const msg = data.toString("utf-8")
+          this.log.debug(msg)
           if (msg === "{}") {
             ws.send(`{"H":"queuehub","M":"StartTask","A":[${reportId}],"I":0}`)
             return
           }
+          ws.send(`{"ping": "pong"}`)
           if (timeStamp() - startTS > 30) {
             throw new Error("Connection timeout")
           }
@@ -321,10 +323,12 @@ export default class SGO {
       ws.on("message", data => {
         try {
           const msg = data.toString("utf-8")
+          this.log.debug(msg)
           if (msg === "{}") {
             ws.send(`{"H":"queuehub","M":"StartTask","A":[${reportId}],"I":0}`)
             return
           }
+          ws.send(`{"ping": "pong"}`)
           if (timeStamp() - startTS > 30) {
             throw new Error("Connection timeout")
           }
@@ -418,6 +422,7 @@ export default class SGO {
     ws.on("open", () => this.log.debug(`Websocket opened`))
     ws.on("close", async () => {
       try {
+        this.log.debug(`Websocket closed`)
         await this.sendRequest(
           `WebApi/signalr/abort?${querystring.stringify(requestData)}`,
           {
