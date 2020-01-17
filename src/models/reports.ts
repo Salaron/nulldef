@@ -73,7 +73,7 @@ export class StudentTotalReport {
         if (months[data[tr][0]] && data[tr][th] != "") {
           if (_lastMonth != null && months[data[tr][0]] < _lastMonth) year += 1
           const dayDetail = {
-            date: `${months[data[tr][0]]}-${data[tr][1]}`,
+            date: `${moment(data[tr][1], "DD").format("DD")}-${moment(months[data[tr][0]], "MM").format("MM")}`,
             marks: data[tr][th].split(/\s+/g),
             marksRemoved: <string[]>[],
             marksAdded: <string[]>[]

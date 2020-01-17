@@ -111,16 +111,27 @@ export default class extends NlModule {
       sendTo.push(ctx.peerId)
     }
 
+    let counter = 1
+    const total = Math.ceil(result.length / 3500)
     if (result.length === 0) return
     while (result.length != 0) {
-      const short = result.slice(0, 4000)
-      result = result.replace(short, "")
+      let lastIndex = 0
+      let done = false
+      while (!done) {
+        const newIndex = result.indexOf(")\n\n\n", lastIndex + 1)
+        if (lastIndex === newIndex || lastIndex > 3500 || newIndex === -1) done = true
+        else lastIndex = newIndex
+      }
+      lastIndex += 4
+      const short = `[ обновление от ${moment().format("HH:mm")} | сообщение ${counter} из ${total} ]\n${result.slice(0, lastIndex)}`
+      result = result.replace(result.slice(0, lastIndex), "")
       for (const peerId of sendTo) {
         await vk.api.messages.send({
           message: short,
           peer_id: peerId
         })
       }
+      counter += 1
     }
   }
 
@@ -139,7 +150,7 @@ export default class extends NlModule {
     for (const cl of Object.keys(classes)) {
       result = [].concat(await Promise.all(classes[cl].map(async (user: string) => {
         try {
-          const report = await this.client.getStudentTotalReport(parseInt(user), parseInt(cl), `01.01.2019`, moment().add(1, "week").format("DD.MM.YYYY"))
+          const report = await this.client.getStudentTotalReport(parseInt(user), parseInt(cl), `01.01.2020`, moment().add(1, "week").format("DD.MM.YYYY"))
           return await report.parseReport(new Date().getFullYear(), parseInt(user))
         } catch (err) {
           await sendMessageToAdmins(`Во время обработки одного из отчётов произошла ошибка: ${err.message}`)
