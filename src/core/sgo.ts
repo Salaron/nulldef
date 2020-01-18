@@ -310,13 +310,12 @@ export default class SGO {
       ]
     }
 
-    const reportId = await this.sendRequest(`webapi/reports/JournalAccess/queue`, {
+    const task = await this.sendRequest(`webapi/reports/journalaccess/queue`, {
       json: true,
       data: reqData,
       method: "POST"
     })
-    if (typeof reportId != "number")
-      throw new Error(`ReportId is not a number; ${reportId}`)
+    if (typeof task.taskId !== "number") throw new Error("Task ID is not a number!")
 
     return new Promise((res, rej) => {
       ws.on("message", data => {
@@ -324,7 +323,7 @@ export default class SGO {
           const msg = data.toString("utf-8")
           this.log.debug(msg)
           if (msg === "{}") {
-            ws.send(`{"H":"queuehub","M":"StartTask","A":[${reportId}],"I":0}`)
+            ws.send(`{"H":"queuehub","M":"StartTask","A":[${task.taskId}],"I":0}`)
             return
           }
           ws.send(`{"ping": "pong"}`)
