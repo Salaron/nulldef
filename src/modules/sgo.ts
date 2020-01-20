@@ -110,9 +110,8 @@ export default class extends NlModule {
     if (ctx && !sendTo.includes(ctx.peerId)) {
       sendTo.push(ctx.peerId)
     }
-
     let counter = 1
-    const total = Math.ceil(result.length / 3500)
+    const total = Math.round(result.length / 3500)
     if (result.length === 0) return
     while (result.length != 0) {
       let lastIndex = 0
@@ -123,7 +122,7 @@ export default class extends NlModule {
         else lastIndex = newIndex
       }
       lastIndex += 4
-      const short = `[ обновление от ${moment().format("HH:mm")} | сообщение ${counter} из ${total} ]\n${result.slice(0, lastIndex)}`
+      const short = `[ ${moment().format("HH:mm")} | сообщение ${counter} из ${total} ]\n${result.slice(0, lastIndex)}`
       result = result.replace(result.slice(0, lastIndex), "")
       for (const peerId of sendTo) {
         await vk.api.messages.send({
@@ -163,7 +162,8 @@ export default class extends NlModule {
       if (!userMarks || userMarks.haveChanges === false) return
       out += `${userMarks.user}:\n`
       userMarks.result.map(subject => {
-        if (subject.avgMark === "" || subject.haveChanges === false) return
+        if (subject.haveChanges === false) return
+        if (subject.avgMark === "") subject.avgMark = "N/A"
         out += `-- ${subject.name} { `
         let init = false
         subject.marks.map(day => {
