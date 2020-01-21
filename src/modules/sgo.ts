@@ -111,14 +111,14 @@ export default class extends NlModule {
       sendTo.push(ctx.peerId)
     }
     let counter = 1
-    const total = Math.round(result.length / 3500)
+    const total = Math.round(result.length / 3500) || 1
     if (result.length === 0) return
     while (result.length != 0) {
       let lastIndex = 0
       let done = false
       while (!done) {
         const newIndex = result.indexOf(")\n\n\n", lastIndex + 1)
-        if (lastIndex === newIndex || lastIndex > 3500 || newIndex === -1) done = true
+        if (lastIndex > 3500 || newIndex === -1) done = true
         else lastIndex = newIndex
       }
       lastIndex += 4
