@@ -1,40 +1,37 @@
+import VK from "vk-io"
 import Config from "./config"
-import { VK } from "vk-io"
+import { CheckConnection, Connection } from "./core/mysql"
 import { timeStamp } from "./core/utils"
-import { Log } from "./core/log"
-import { startUpLoad } from "./core/module"
-import { MySQLConnect } from "./core/mysql"
-import { handler } from "./handlers/message"
+import { Logger } from "./core/logger"
 
-const log = new Log("Main")
-export let bootTimestamp = timeStamp()
+const logger = new Logger("Main")
+export const bootTimestamp = timeStamp()
 export let vk: VK
 (async () => {
   vk = new VK({
-    token: Config.bot.vkToken,
-    // apiMode: "parallel"
+    token: Config.base.vkToken
   })
 
   const group = await vk.api.groups.getById({
     fileds: "description"
   })
-  log.info(`Successfully connected to group "${group[0].name}"`, "VK")
+  logger.info(`Successfully connected to group "${group[0].name}"`, "VK")
 
-  // Connect to the database
-  await MySQLConnect()
+  await CheckConnection()
 
-  // Load all modules
-  await startUpLoad()
-
-  // Catch all unhandled errors
+  // Catch all unhandled here errors
   vk.updates.use(async (context, next) => {
     try {
+      context.connection = await Connection.beginTransaction()
       await next()
+      await context.connection.commit()
     } catch (err) {
-      log.error(err)
+      if (context.connection && context.connection.released === false) {
+        context.connection.rollback()
+      }
+      logger.error(err)
     }
   })
 
-  vk.updates.on("message", handler)
-  vk.updates.start().catch(log.error)
-})()
+  vk.updates.start().catch(err => logger.error(err))
+})().catch(err => logger.error(err))

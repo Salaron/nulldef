@@ -1,15 +1,16 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "target": "es6",
-    "moduleResolution": "node",
+    "target": "ES2019",
+    "module": "commonjs", 
     "sourceMap": true,
-    "outDir": "dist",
-    "rootDir": "src"
-  },
-  "include": [
-    "src/**/*"
-  ]
+    "outDir": "./dist/",
+    "rootDir": "./src/",
+    "incremental": true,
+    "removeComments": true,
+    "strict": true,
+    "alwaysStrict": true,
+    "strictPropertyInitialization": false,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true
+  }
 }

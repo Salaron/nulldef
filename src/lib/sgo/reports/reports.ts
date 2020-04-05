@@ -1,4 +1,5 @@
-import SGO from "../core/sgo"
+// not ready for use!!
+import SGO from "../sgo"
 import moment from "moment"
 
 // tslint:disable-next-line: no-var-requires

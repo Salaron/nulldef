@@ -1,11 +1,12 @@
 {
   "name": "nulldef",
   "version": "1.0.6",
-  "description": "",
-  "main": "nulldef.js",
+  "description": "A simple VK bot. Was created for interacting with 'Сетевой Город. Образование'",
+  "main": "dist/nulldef.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "lint": "tslint -c tslint.json 'src/**/*.ts'"
+    "test:lint": "tslint -c tslint.json 'src/**/*.ts'",
+    "build": "tsc",
+    "start": "node dist/nulldef.js"
   },
   "repository": {
     "type": "git",
@@ -17,34 +18,24 @@
     "url": "https://github.com/salaron/nulldef/issues"
   },
   "homepage": "https://github.com/salaron/nulldef#readme",
-  "prettier": {
-    "tabWidth": 2,
-    "semi": false,
-    "singleQuote": false,
-    "trailingComma": "none"
-  },
   "devDependencies": {
-    "@types/cheerio": "^0.22.13",
-    "@types/circular-json": "^0.4.0",
-    "@types/extend": "^3.0.1",
-    "@types/mysql": "^2.15.7",
-    "@types/node": "^12.7.3",
-    "@types/node-fetch": "^2.5.0",
-    "@types/request-promise-native": "^1.0.16",
-    "@types/tough-cookie": "^2.3.5",
-    "@types/ws": "^6.0.3",
-    "typescript": "^3.6.2",
-    "tslint": "^5.20.0"
+    "@types/cheerio": "^0.22.17",
+    "@types/debug": "^4.1.5",
+    "@types/mysql2": "types/npm-mysql2",
+    "@types/node": "^13.11.0",
+    "@types/superagent": "^4.1.7",
+    "@types/ws": "^7.2.3",
+    "tslint": "^6.1.1",
+    "typescript": "^3.8.3"
   },
   "dependencies": {
     "cheerio-tableparser": "^1.0.1",
-    "circular-json": "^0.5.9",
-    "extend": "^3.0.2",
+    "debug": "^4.1.1",
     "moment": "^2.24.0",
-    "mysql": "^2.17.1",
-    "request": "^2.88.0",
-    "request-promise-native": "^1.0.7",
-    "vk-io": "^4.0.0-rc.20",
-    "ws": "^7.1.2"
+    "mysql2": "^2.1.0",
+    "superagent": "^5.2.2",
+    "vk-io": "^4.0.0-rc.30",
+    "winston": "^3.2.1",
+    "ws": "^7.2.3"
   }
 }

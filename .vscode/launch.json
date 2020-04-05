@@ -8,9 +8,8 @@
       "type": "node",
       "request": "launch",
       "name": "Start Bot",
-      "program": "${workspaceFolder}/src/nulldef.ts",
+      "program": "${workspaceFolder}/dist/nulldef.js",
       "console": "externalTerminal",
-      "cwd":"${workspaceFolder}/dist/",
       "outFiles": [
           "${workspaceFolder}/dist/**/*.js"
       ]

@@ -1,4 +1,4 @@
-import { LEVEL } from "./core/log"
+import { LEVEL } from "./core/logger"
 
 export default {
   bot: {
@@ -22,14 +22,10 @@ export default {
     sendMarksInfoToPeerIds: []
   },
   database: {
-    autoReconnect: true,
-    autoReconnectDelay: 2000,
-    autoReconnectMaxAttempt: 10,
-    connectionLimit: 30,
-    dateStrings: true,
     host: "localhost",
     user: "",
     password: "",
-    database: ""
+    database: "",
+    connectionLimit: 10
   }
 }
