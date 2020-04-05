@@ -13,7 +13,7 @@
     "url": "git+https://github.com/salaron/nulldef.git"
   },
   "author": "Salaron",
-  "license": "GNU GPLv3",
+  "license": "GPL-3.0",
   "bugs": {
     "url": "https://github.com/salaron/nulldef/issues"
   },
