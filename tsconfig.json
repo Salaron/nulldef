@@ -12,5 +12,6 @@
     "strictPropertyInitialization": false,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true
-  }
+  },
+  "exclude": ["src/sgo/reports", "node_modules"]
 }

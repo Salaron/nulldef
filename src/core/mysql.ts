@@ -112,7 +112,7 @@ export async function CheckConnection() {
     connection = await pool.getConnection()
     logger.info("Connected to MySQL/MariaDB Server")
   } catch (err) {
-    err.message = "Unable to connect to MySQL/MariaDB Server"
+    err.message = `Unable to connect to MySQL/MariaDB Server\n${err.message}`
     throw err
   } finally {
     if (connection) connection.release()

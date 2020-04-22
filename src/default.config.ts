@@ -7,15 +7,8 @@ export default {
     defaultCommandFlag: "/",
     adminPeerIds: []
   },
-  witAi: {
-    token: ""
-  },
-  yaTTS: {
-    token: "",
-    folderId: ""
-  },
   sgo: {
-    userName: "",
+    username: "",
     password: "",
     activityStartTime: "05:00",
     activityEndTime: "23:59",

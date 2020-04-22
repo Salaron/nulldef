@@ -1,5 +1,5 @@
 // not ready for use!!
-import SGO from "../sgo"
+import SGO from "../client"
 import moment from "moment"
 
 // tslint:disable-next-line: no-var-requires

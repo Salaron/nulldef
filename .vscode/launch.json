@@ -12,7 +12,10 @@
       "console": "externalTerminal",
       "outFiles": [
           "${workspaceFolder}/dist/**/*.js"
-      ]
+      ],
+      "env": {
+        "DEBUG": "SGO"
+      }
     }
   ] 
 }
