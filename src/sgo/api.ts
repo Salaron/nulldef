@@ -24,12 +24,27 @@ export class API {
     this.sgo = sgo
   }
 
+  public async getDiaryAssignment(assignmentId: number, studentId = this.sgo.session.userId) {
+    return await this.sgo.sendRequest("webapi/student/diary/assigns/" + assignmentId, {
+      responseType: "json",
+      requestData: {
+        studentId
+      }
+    })
+  }
+  public async downloadAttachment(attachmentId: number) {
+    return this.sgo.sendRequest("webapi/attachments/" + attachmentId, {
+      method: "GET",
+      responseType: "buffer"
+    })
+  }
+
   /**
    * Возвращает список пользователей, которые находятся сейчас в системе
    */
   public async getCurrentOnline(): Promise<IUserActiveSession[]> {
     return this.sgo.sendRequest("webapi/context/activeSessions", {
-      jsonResponse: true
+      responseType: "json"
     })
   }
 
@@ -40,8 +55,8 @@ export class API {
    * @param weekEnd дата окончания учёта в формате "YYYY-MM-DD"
    */
   public async getPastMandatory(studentId = this.sgo.session.userId, weekStart: string, weekEnd: string): Promise<IPastMandatory[]> {
-    return this.sgo.sendRequest("/webapi/student/diary/pastMandatory", {
-      jsonResponse: true,
+    return this.sgo.sendRequest("webapi/student/diary/pastMandatory", {
+      responseType: "json",
       requestData: {
         studentId,
         weekStart,
@@ -59,8 +74,8 @@ export class API {
    */
   public async getDiary(studentId = this.sgo.session.userId, weekStart: string, weekEnd: string) {
     // TODO: typings
-    return this.sgo.sendRequest("/webapi/student/diary/pastMandatory", {
-      jsonResponse: true,
+    return this.sgo.sendRequest("webapi/student/diary", {
+      responseType: "json",
       requestData: {
         studentId,
         weekStart,
@@ -70,15 +85,17 @@ export class API {
     })
   }
 
-  // TODO
   public async getMail(order: "ASC" | "DESC") {
-
+    // TODO
   }
 
   /**
    * Завершает текущую сессию
+   *
+   * *Замечание*: все ошибки будут игнорированны
    */
-  public async logout() {
+  public async logout(): Promise<boolean> {
+    if (this.sgo.session.userId === 0) return true
     try {
       await this.sgo.sendRequest("asp/logout.asp", {
         method: "POST",
@@ -88,8 +105,9 @@ export class API {
         }
       })
       this.sgo.session = defaultSession
+      return true
     } catch {
-      // ignore errors
+      return false
     }
   }
 }

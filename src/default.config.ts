@@ -17,8 +17,6 @@ export default {
   database: {
     host: "localhost",
     user: "",
-    password: "",
-    database: "",
-    connectionLimit: 10
+    password: ""
   }
 }

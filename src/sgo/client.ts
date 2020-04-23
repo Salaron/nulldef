@@ -21,7 +21,7 @@ interface ISGOSession {
 interface ISendRequestOptions {
   requestData?: any
   method?: "POST" | "GET"
-  jsonResponse?: boolean
+  responseType?: "text" | "json" | "buffer"
 }
 
 export const defaultSession: ISGOSession = {
@@ -38,12 +38,12 @@ export const defaultSession: ISGOSession = {
 
 export default class SGO {
   public API = new API(this)
-  public session: ISGOSession
+  public session: ISGOSession = defaultSession
 
   protected HOST = "https://sgo.edu-74.ru/"
   protected headers: { [name: string]: string } = {
     "connection": "keep-alive",
-    "accept": "application/json, text/javascript, */*; q=0.01",
+    "accept": "*/*",
     "accept-encoding": "gzip, deflate, br",
     "accept-language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7,ja-JP;q=0.6,ja;q=0.5",
     "user-agent":
@@ -64,7 +64,7 @@ export default class SGO {
     return client
   }
 
-  public async sendRequest(endpoint: string, options: ISendRequestOptions): Promise<any> {
+  public async sendRequest(endpoint: string, options?: ISendRequestOptions): Promise<any> {
     debug(`Sending request to endpoint: ${endpoint}`)
     if (options && options.requestData) debug(options.requestData)
 
@@ -80,20 +80,19 @@ export default class SGO {
 
     try {
       const response = await this.httpClient(endpoint, {
-        method: options.method,
+        method: options?.method,
         headers: this.headers,
         resolveBodyOnly: true,
-        form: options.requestData,
-        responseType: options.jsonResponse ? "json" : "text"
+        form: options?.method === "POST" ? options.requestData : undefined,
+        searchParams: !options?.method || options.method === "GET" ? options?.requestData : undefined,
+        responseType: options?.responseType
       })
       return response
     } catch (err) {
-      if (err.name === "HTTPError" && err.response && err.response.statusCode) {
-        if (err.response.statusCode === 401) {
-          await this.resetInstance()
-          // retry request
-          return await this.sendRequest(endpoint, options)
-        }
+      if (err.name === "HTTPError" && err.response && err.response.statusCode && err.response.statusCode === 401) {
+        await this.resetInstance()
+        // retry request
+        return await this.sendRequest(endpoint, options)
       } else {
         throw err
       }
@@ -101,14 +100,15 @@ export default class SGO {
   }
 
   private async resetInstance() {
+    await this.API.logout()
     this.session = defaultSession
     this.httpClient = got.extend({
       prefixUrl: "https://sgo.edu-74.ru",
       cookieJar: new CookieJar()
     })
 
-    const authData =  await this.sendRequest("webapi/auth/getdata", {
-      jsonResponse: true,
+    const authData = await this.sendRequest("webapi/auth/getdata", {
+      responseType: "json",
       method: "POST"
     })
     this.session.LT = authData.lt
@@ -141,7 +141,7 @@ export default class SGO {
       ver: authData.ver
     }
     const response = await this.sendRequest("webapi/login", {
-      jsonResponse: true,
+      responseType: "json",
       requestData,
       method: "POST"
     })
@@ -153,7 +153,7 @@ export default class SGO {
     })
     const diary = await this.sendRequest("webapi/student/diary/init", {
       method: "GET",
-      jsonResponse: true
+      responseType: "json"
     })
     this.session.userId = diary.students[0].studentId
     this.session.name = diary.students[0].nickName
