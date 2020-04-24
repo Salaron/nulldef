@@ -8,15 +8,19 @@ export default {
     adminPeerIds: []
   },
   sgo: {
-    username: "",
-    password: "",
+    users: [
+      {
+        username: "",
+        password: "",
+        main: true,
+        description: ""
+      }
+    ],
     activityStartTime: "05:00",
-    activityEndTime: "23:59",
-    sendMarksInfoToPeerIds: []
+    activityEndTime: "23:59"
   },
   database: {
     host: "localhost",
-    user: "",
     password: ""
   }
 }

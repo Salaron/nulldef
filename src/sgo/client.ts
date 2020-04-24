@@ -2,7 +2,7 @@ import crypto from "crypto"
 import createDebug from "debug"
 import got, { Got } from "got"
 import { CookieJar } from "tough-cookie"
-import { timeStamp } from "../core/utils"
+import { timeStamp, createObjCopy } from "../core/utils"
 import { API } from "./api"
 
 const debug = createDebug("SGO")
@@ -38,7 +38,7 @@ export const defaultSession: ISGOSession = {
 
 export default class SGO {
   public API = new API(this)
-  public session: ISGOSession = defaultSession
+  public session: ISGOSession = createObjCopy(defaultSession)
 
   protected HOST = "https://sgo.edu-74.ru/"
   protected headers: { [name: string]: string } = {
@@ -101,7 +101,7 @@ export default class SGO {
 
   private async resetInstance() {
     await this.API.logout()
-    this.session = defaultSession
+    this.session = createObjCopy(defaultSession)
     this.httpClient = got.extend({
       prefixUrl: "https://sgo.edu-74.ru",
       cookieJar: new CookieJar()

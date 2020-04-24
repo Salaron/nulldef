@@ -9,3 +9,7 @@ export function sha256(input: string) {
   sum.update(input)
   return sum.digest("hex")
 }
+
+export function createObjCopy<T>(object: T): T {
+  return JSON.parse(JSON.stringify(object))
+}
