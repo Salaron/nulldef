@@ -55,7 +55,10 @@ async function checkDiaryUpdates() {
         vkAttachments = await Promise.all(attachments.map(async attachment => {
           return await vk.upload.messageDocument({
             title: attachment.name,
-            source: attachment.buffer,
+            source: {
+              value: attachment.buffer,
+              filename: attachment.name
+            },
             peer_id: 2000000001
           })
         }))
