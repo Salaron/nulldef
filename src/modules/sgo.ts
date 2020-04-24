@@ -4,11 +4,13 @@ import Config from "../config"
 import { Logger } from "../core/logger"
 import { Redis } from "../core/redis"
 import { vk } from "../nulldef"
+import { sha256 } from "../core/utils"
 import SGO from "../sgo/client"
 
 const logger = new Logger("Module: SGO")
 let client: SGO
 
+const assignmentExpires = 1.901e+6 // 22 days
 async function checkDiaryUpdates() {
   try {
     const diary = await client.API.getDiary(
@@ -16,23 +18,26 @@ async function checkDiaryUpdates() {
       moment().subtract(1, "week").format("YYYY-MM-DD"),
       moment().add(1, "week").format("YYYY-MM-DD")
     )
-    const assignmentIDs = []
+    const assignments = []
     for (const day of diary.weekDays) {
       for (const lesson of day.lessons) {
         if (!lesson.assignments || lesson.assignments.length === 0) continue
         for (const assignment of lesson.assignments) {
-          assignmentIDs.push(assignment.id)
+          assignment.mark = null // to prevent fake updates
+          assignments.push(assignment)
         }
       }
     }
 
-    for (const assignmentID of assignmentIDs) {
-      const check = await Redis.get(`SGO:assignments:${assignmentID}`)
-      if (check !== null) continue // skip existing for now
+    for (const assignment of assignments) {
+      const hash = sha256(JSON.stringify(assignment))
+      const check = await Redis.get(`SGO:assignments:${assignment.id}`)
+      if (check !== null && check === hash) continue
 
       let result = ""
-      const assignInfo = await client.API.getDiaryAssignment(assignmentID)
-      await Redis.set(`SGO:assignments:${assignmentID}`, "here") // save into database
+      const assignInfo = await client.API.getDiaryAssignment(assignment.id)
+      await Redis.del(`SGO:assignments:${assignment.id}`) // remove prev version
+      await Redis.set(`SGO:assignments:${assignment.id}`, hash, "ex", assignmentExpires) // save into database
       const attachments = []
       if (assignInfo.attachments && assignInfo.attachments.length > 0) {
         for (const attachment of assignInfo.attachments) {
