@@ -37,7 +37,7 @@ export const defaultSession: ISGOSession = {
 }
 
 export default class SGO {
-  public API = new API(this)
+  public api = new API(this)
   public session: ISGOSession = createObjCopy(defaultSession)
 
   protected HOST = "https://sgo.edu-74.ru/"
@@ -54,6 +54,7 @@ export default class SGO {
   }
   protected username: string
   protected password: string
+  protected retryAttempts: number = 0
   protected httpClient: Got
 
   public static async startSession(username: string, password: string) {
@@ -87,9 +88,16 @@ export default class SGO {
         searchParams: !options?.method || options.method === "GET" ? options?.requestData : undefined,
         responseType: options?.responseType
       })
+      this.retryAttempts = 0
       return response
     } catch (err) {
       if (err.name === "HTTPError" && err.response && err.response.statusCode && err.response.statusCode === 401) {
+        if (this.retryAttempts > 3) {
+          this.retryAttempts = 0
+          err.message = "Reconnecting attempts limit reached\n" + err.message
+          throw err
+        }
+        this.retryAttempts += 1
         await this.resetInstance()
         // retry request
         return await this.sendRequest(endpoint, options)
@@ -100,7 +108,7 @@ export default class SGO {
   }
 
   private async resetInstance() {
-    await this.API.logout()
+    await this.api.logout()
     this.session = createObjCopy(defaultSession)
     this.httpClient = got.extend({
       prefixUrl: "https://sgo.edu-74.ru",

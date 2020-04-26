@@ -9,14 +9,14 @@ import SGO from "../sgo/client"
 
 const logger = new Logger("Module: SGO")
 let mainClient: SGO
-const clients: Array<SGO & { description?: string }> = []
+const clients: (SGO & { description?: string })[] = []
 
 const assignmentExpires = 1.901e+6 // 22 days
 async function checkDiaryUpdates() {
   if (!moment().isBetween(moment(Config.sgo.activityStartTime, "HH:mm"), moment(Config.sgo.activityEndTime, "HH:mm"))) return
   try {
     for (const client of clients) {
-      const diary = await client.API.getDiary(
+      const diary = await client.api.getDiary(
         client.session.userId,
         moment().subtract(1, "week").format("YYYY-MM-DD"),
         moment().add(1, "week").format("YYYY-MM-DD")
@@ -37,20 +37,20 @@ async function checkDiaryUpdates() {
         if (check !== null && check === hash) continue
 
         let result = ""
-        const assignInfo = await client.API.getDiaryAssignment(assignment.id)
+        const assignInfo = await client.api.getDiaryAssignment(assignment.id)
         await Redis.del(`SGO:assignments:${assignment.id}`) // remove prev version
         await Redis.set(`SGO:assignments:${assignment.id}`, hash, "ex", assignmentExpires) // save into database
         const attachments = []
         if (assignInfo.attachments && assignInfo.attachments.length > 0) {
           for (const attachment of assignInfo.attachments) {
-            const buffer = await client.API.downloadAttachment(attachment.id)
+            const buffer = await client.api.downloadAttachment(attachment.id)
             attachments.push({
               name: attachment.originalFileName,
               buffer
             })
           }
         }
-        result += `ДЗ для ${client.description}\n`
+        result += `ДЗ ${client.description}\n`
         result += `Предмет: ${assignInfo.subjectGroup.name}\n`
         result += `Домашнее задание: ${assignInfo.assignmentName}\n`
         if (assignInfo.description !== "") {
@@ -87,17 +87,16 @@ setInterval(checkDiaryUpdates, 1.8e+6) // every 30 mins
 
 export async function setup() {
   for (const user of Config.sgo.users) {
-    let instance: SGO & { description?: string } = await SGO.startSession(user.username, user.password)
+    const instance: SGO & { description?: string } = await SGO.startSession(user.username, user.password)
     if (user.main) mainClient = instance
     instance.description = user.description
     clients.push(instance)
   }
-  // await checkDiaryUpdates()
 
   vk.updates.hear("!sgo-дз", checkDiaryUpdates)
   vk.updates.hear("!sgo-онлайн", async (context) => {
     if (!mainClient) return await context.send(`Аккаунт не подключен`)
-    const users = await mainClient.API.getCurrentOnline()
+    const users = await mainClient.api.getCurrentOnline()
     const online = {
       users,
       students: 0,
