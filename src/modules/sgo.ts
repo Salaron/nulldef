@@ -3,8 +3,8 @@ import { DocumentAttachment } from "vk-io"
 import Config from "../config"
 import { Logger } from "../core/logger"
 import { Redis } from "../core/redis"
-import { vk } from "../nulldef"
 import { sha256 } from "../core/utils"
+import { vk } from "../nulldef"
 import SGO from "../sgo/client"
 
 const logger = new Logger("Module: SGO")
@@ -93,8 +93,8 @@ export async function setup() {
     clients.push(instance)
   }
 
-  vk.updates.hear("!sgo-дз", checkDiaryUpdates)
-  vk.updates.hear("!sgo-онлайн", async (context) => {
+  vk.updates.hear("!sgo-hm", checkDiaryUpdates)
+  vk.updates.hear("!sgo-online", async (context) => {
     if (!mainClient) return await context.send(`Аккаунт не подключен`)
     const users = await mainClient.api.getCurrentOnline()
     const online = {

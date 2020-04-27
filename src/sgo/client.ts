@@ -108,6 +108,8 @@ export default class SGO {
   }
 
   private async resetInstance() {
+    this.session.lastRequestDate = timeStamp()
+    this.session.sessionStarted = timeStamp()
     await this.api.logout()
     this.session = createObjCopy(defaultSession)
     this.httpClient = got.extend({
