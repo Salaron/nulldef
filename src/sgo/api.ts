@@ -1,4 +1,4 @@
-import SGO, { defaultSession } from "./client"
+import SGO from "./client"
 
 interface IUserActiveSession {
   eMs: string
@@ -102,9 +102,9 @@ export class API {
         requestData: {
           at: this.sgo.session.AT.toString(),
           ver: this.sgo.session.VER
-        }
+        },
+        ignoreSessionTime: true
       })
-      this.sgo.session = defaultSession
       return true
     } catch {
       return false

@@ -2,7 +2,7 @@ import crypto from "crypto"
 import createDebug from "debug"
 import got, { Got } from "got"
 import { CookieJar } from "tough-cookie"
-import { timeStamp, createObjCopy } from "../core/utils"
+import { timeStamp } from "../core/utils"
 import { API } from "./api"
 
 const debug = createDebug("SGO")
@@ -22,23 +22,12 @@ interface ISendRequestOptions {
   requestData?: any
   method?: "POST" | "GET"
   responseType?: "text" | "json" | "buffer"
-}
-
-export const defaultSession: ISGOSession = {
-  AT: "",
-  name: "",
-  userId: 0,
-  yearId: 0,
-  VER: 0,
-  LT: 0,
-  requestCount: 0,
-  lastRequestDate: timeStamp(),
-  sessionStarted: timeStamp()
+  ignoreSessionTime?: boolean
 }
 
 export default class SGO {
   public api = new API(this)
-  public session: ISGOSession = createObjCopy(defaultSession)
+  public session: ISGOSession
 
   protected HOST = "https://sgo.edu-74.ru/"
   protected headers: { [name: string]: string } = {
@@ -59,6 +48,7 @@ export default class SGO {
 
   public static async startSession(username: string, password: string) {
     const client = new SGO()
+    client.resetSession()
     client.username = username
     client.password = password
     await client.resetInstance()
@@ -70,8 +60,10 @@ export default class SGO {
     if (options && options.requestData) debug(options.requestData)
 
     if (
-      timeStamp() - this.session.lastRequestDate > 3600 || // after 1 hour session will be expired
-      timeStamp() - this.session.sessionStarted > 86399    // or after 1 day since we're logged in
+      !(options?.ignoreSessionTime) && (
+        timeStamp() - this.session.lastRequestDate > 3600 || // after 1 hour session will be expired
+        timeStamp() - this.session.sessionStarted > 86399    // or after 1 day since we're logged in
+      )
     ) {
       debug("Current session is expired. Attempt to login again...")
       await this.resetInstance()
@@ -108,10 +100,8 @@ export default class SGO {
   }
 
   private async resetInstance() {
-    this.session.lastRequestDate = timeStamp()
-    this.session.sessionStarted = timeStamp()
     await this.api.logout()
-    this.session = createObjCopy(defaultSession)
+    this.resetSession()
     this.httpClient = got.extend({
       prefixUrl: "https://sgo.edu-74.ru",
       cookieJar: new CookieJar()
@@ -169,5 +159,19 @@ export default class SGO {
     this.session.name = diary.students[0].nickName
     this.session.yearId = parseInt(diaryPage.match(/appContext.yearId = "[0-9]+"/)[0].match(/[0-9]+/), 10)
     debug(`Successfully logged in as ${this.session.name}`)
+  }
+
+  private resetSession() {
+    this.session = {
+      AT: "",
+      name: "",
+      userId: 0,
+      yearId: 0,
+      VER: 0,
+      LT: 0,
+      requestCount: 0,
+      lastRequestDate: timeStamp(),
+      sessionStarted: timeStamp()
+    }
   }
 }
