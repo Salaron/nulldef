@@ -35,7 +35,8 @@ async function checkDiaryUpdates() {
         const hash = sha256(JSON.stringify(assignment))
         const check = await Redis.get(`SGO:assignments:${assignment.id}`)
         if (check !== null && check === hash) continue
-
+        const edited = check !== null
+         
         let result = ""
         const assignInfo = await client.api.getDiaryAssignment(assignment.id)
         await Redis.del(`SGO:assignments:${assignment.id}`) // remove prev version
@@ -50,7 +51,7 @@ async function checkDiaryUpdates() {
             })
           }
         }
-        result += `ДЗ ${client.description}\n`
+        result += `${client.description}\n`
         result += `Предмет: ${assignInfo.subjectGroup.name}\n`
         result += `Домашнее задание: ${assignInfo.assignmentName}\n`
         if (assignInfo.description !== "") {
@@ -70,6 +71,9 @@ async function checkDiaryUpdates() {
               peer_id: 2000000001
             })
           }))
+        }
+        if (edited === true) {
+          result += "\nNote: данное задание было отредактировано"
         }
         await vk.api.messages.send({
           message: result,
